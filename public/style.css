@@ -161,6 +161,17 @@ input:focus { border-color: var(--accent); }
 #notify-status { font-weight: 700; }
 
 /* 記録タブ(セッション履歴) */
+.dot-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.dot-cal .dow { font-size: 10px; color: var(--muted); font-weight: 700; }
+.dot-cal .cell {
+  font-size: 18px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.dot-cal .cell.miss { color: #39406a; font-size: 12px; }
+.dot-cal .cell.future { opacity: .3; font-size: 12px; color: #39406a; }
+.dot-cal .cell.today { outline: 1px solid var(--accent); }
+
+.history-day.today { border: 1px solid #5a4630; }
 .history-day { flex-direction: column; align-items: stretch; gap: 4px; }
 .history-date { font-weight: 700; font-size: 14px; }
 .history-starts { list-style: none; display: flex; flex-direction: column; gap: 2px; }

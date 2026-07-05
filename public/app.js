@@ -432,6 +432,7 @@ function main() {
       $("history-stats").hidden = false;
       $("history-stats").textContent =
         `今月 ${monthCount}日` + (streak >= 2 ? ` ・ ${streak}日連続🔥` : "");
+      renderWeeksView(ids);
       const week = ["日", "月", "火", "水", "木", "金", "土"];
       const docs = snap.docs.slice().sort((a, b) => (a.id < b.id ? 1 : -1)); // 新しい日付順
       docs.forEach((docSnap) => {
@@ -443,7 +444,7 @@ function main() {
           ? s.starts
           : [{ at: s.lastStartAt, untilTime: s.untilTime || "", message: "" }];
         const li = document.createElement("li");
-        li.className = "history-day";
+        li.className = "history-day" + (docSnap.id === localDayStr(Date.now()) ? " today" : "");
         const head = document.createElement("div");
         head.className = "history-date";
         head.textContent = `${mo}月${da}日(${week[date.getDay()]}) `
@@ -465,6 +466,53 @@ function main() {
     } catch (e) {
       console.error(e);
       list.innerHTML = `<li class="muted">読み込みに失敗しました(${e.code || e.message || "不明なエラー"})</li>`;
+    }
+  }
+
+  // 先週+今週の14日グリッド(やった日は🐤)と、先週比較・よくやる曜日
+  function renderWeeksView(ids) {
+    const todayStr = localDayStr(Date.now());
+    const dow = (new Date().getDay() + 6) % 7; // 月曜=0
+    const thisMonday = Date.now() - dow * 86400000;
+    const cal = $("dot-cal");
+    cal.innerHTML = "";
+    const names = ["月", "火", "水", "木", "金", "土", "日"];
+    names.forEach((w) => {
+      const h = document.createElement("span");
+      h.className = "dow";
+      h.textContent = w;
+      cal.appendChild(h);
+    });
+    let lastWeek = 0, thisWeek = 0;
+    for (let i = -7; i < 7; i++) {
+      const ts = thisMonday + i * 86400000;
+      const day = localDayStr(ts);
+      const did = ids.has(day);
+      if (did) { if (i < 0) lastWeek++; else thisWeek++; }
+      const c = document.createElement("span");
+      c.className = "cell";
+      if (day === todayStr) c.classList.add("today");
+      if (did) c.textContent = "🐤";
+      else if (ts > Date.now()) { c.classList.add("future"); c.textContent = "・"; }
+      else { c.classList.add("miss"); c.textContent = "・"; }
+      cal.appendChild(c);
+    }
+    const cmp = $("week-compare");
+    cmp.hidden = false;
+    const diff = thisWeek - lastWeek;
+    cmp.textContent = `先週 ${lastWeek}日 → 今週 ${thisWeek}日`
+      + (diff > 0 ? " 📈 先週超え!" : diff === 0 && thisWeek > 0 ? "(先週と同ペース)" : "");
+    // よくやる曜日(直近60日で2回以上の上位2つ)
+    const dowCount = [0, 0, 0, 0, 0, 0, 0];
+    ids.forEach((id) => {
+      const [y, m, d] = id.split("-").map(Number);
+      dowCount[(new Date(y, m - 1, d).getDay() + 6) % 7]++;
+    });
+    const best = dowCount.map((c, i) => ({ c, i }))
+      .filter((x) => x.c >= 2).sort((a, b) => b.c - a.c).slice(0, 2);
+    $("dow-hint").hidden = best.length === 0;
+    if (best.length) {
+      $("dow-hint").textContent = `よくやる曜日: ${best.map((x) => `${names[x.i]}曜`).join("・")}`;
     }
   }
 
