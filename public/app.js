@@ -71,7 +71,7 @@ function main() {
     unsubscribers.forEach((u) => u());
     unsubscribers = [];
     me = user;
-    if (!user) { showScreen("auth"); return; }
+    if (!user) { exitWorkout(true); showScreen("auth"); return; }
     await ensureUserDocs(user);
     showScreen("main");
     $("home-greeting").textContent = `${myProfile.name} さん、今日もやりますか`;
@@ -81,6 +81,7 @@ function main() {
     watchFriends();
     setupMessaging().catch(console.error);
     handleUrlReply();
+    restoreWorkout(); // 終了時刻前ならリロードしても筋トレ中画面に戻る
   });
 
   // ---------- 初回ユーザー作成 ----------
@@ -154,6 +155,7 @@ function main() {
       $("message").value = "";
       $("msg-count").textContent = "0";
       clearReply();
+      enterWorkout({ endTs: untilToTs(untilTime), untilTime, message, bubbles: [] });
     } catch (e) {
       console.error(e);
       toast("送信に失敗しました: " + (e.message || e.code));
@@ -182,6 +184,126 @@ function main() {
       history.replaceState(null, "", location.pathname);
     }
   }
+
+  // ---------- 筋トレ中の画面(時計 + フキダシ付箋) ----------
+  const WORKOUT_KEY = "imakinWorkout";
+  const BUBBLE_COLORS = ["#ffe082", "#ffab91", "#a5d6a7", "#90caf9", "#f48fb1", "#e6ee9c"];
+  let workout = null;       // { endTs, untilTime, message, bubbles: [] }
+  let workoutTimer = null;
+  let wakeLock = null;
+
+  function untilToTs(untilTime) {
+    const [h, m] = untilTime.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); // 夜またぎ
+    return d.getTime();
+  }
+
+  function enterWorkout(state) {
+    workout = state;
+    saveWorkout();
+    $("workout-until").textContent = `〜${state.untilTime} まで`;
+    $("workout-msg").textContent = state.message || "";
+    $("workout-msg").hidden = !state.message;
+    $("bubble-layer").innerHTML = "";
+    $("workout-hint").hidden = state.bubbles.length > 0;
+    state.bubbles.forEach(renderBubble);
+    $("workout-screen").hidden = false;
+    clearInterval(workoutTimer);
+    workoutTimer = setInterval(workoutTick, 1000);
+    workoutTick();
+    acquireWakeLock();
+  }
+
+  function workoutTick() {
+    const now = new Date();
+    $("wo-hm").textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    $("wo-s").textContent = String(now.getSeconds()).padStart(2, "0");
+    const left = workout.endTs - now.getTime();
+    if (left <= 0) {
+      $("wo-remain").textContent = "時間だ!お疲れさま 💪";
+      return;
+    }
+    const s = Math.floor(left / 1000);
+    const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+    $("wo-remain").textContent =
+      "あと " + (hh > 0 ? `${hh}:${String(mm).padStart(2, "0")}` : String(mm)) + `:${String(ss).padStart(2, "0")}`;
+  }
+
+  function exitWorkout(force = false) {
+    if (!force && workout?.bubbles.length && !confirm("筋トレ中の画面を閉じますか?貼られたフキダシは消えます")) return;
+    workout = null;
+    localStorage.removeItem(WORKOUT_KEY);
+    clearInterval(workoutTimer);
+    workoutTimer = null;
+    $("workout-screen").hidden = true;
+    wakeLock?.release().catch(() => {});
+    wakeLock = null;
+  }
+
+  function saveWorkout() {
+    if (workout) localStorage.setItem(WORKOUT_KEY, JSON.stringify(workout));
+  }
+
+  function restoreWorkout() {
+    try {
+      const s = JSON.parse(localStorage.getItem(WORKOUT_KEY));
+      if (s && s.endTs > Date.now()) enterWorkout(s);
+      else localStorage.removeItem(WORKOUT_KEY);
+    } catch { localStorage.removeItem(WORKOUT_KEY); }
+  }
+
+  function bubbleColor(uid) {
+    let h = 0;
+    for (const c of String(uid)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return BUBBLE_COLORS[h % BUBBLE_COLORS.length];
+  }
+
+  function addWorkoutBubble(d) {
+    const b = {
+      uid: d.senderUid || "",
+      name: d.senderName || "友達",
+      message: d.message || "",
+      untilTime: d.untilTime || "",
+      x: 4 + Math.random() * 44,   // %(フキダシの幅ぶん右端を空ける)
+      y: 6 + Math.random() * 72,   // %
+      tilt: +(Math.random() * 14 - 7).toFixed(1),
+    };
+    workout.bubbles.push(b);
+    if (workout.bubbles.length > 40) workout.bubbles.shift();
+    saveWorkout();
+    $("workout-hint").hidden = true;
+    renderBubble(b);
+  }
+
+  function renderBubble(b) {
+    const el = document.createElement("div");
+    el.className = "bubble";
+    el.style.left = b.x + "%";
+    el.style.top = b.y + "%";
+    el.style.setProperty("--tilt", b.tilt + "deg");
+    el.style.setProperty("--bubble-bg", bubbleColor(b.uid));
+    const name = document.createElement("span");
+    name.className = "bubble-name";
+    name.textContent = b.untilTime ? `${b.name}・〜${b.untilTime}` : b.name;
+    const msg = document.createElement("span");
+    msg.className = "bubble-msg";
+    msg.textContent = b.message || "💪🔥";
+    el.append(name, msg);
+    $("bubble-layer").appendChild(el);
+  }
+
+  // 筋トレ中は画面をスリープさせない(非対応ブラウザでは何もしない)
+  async function acquireWakeLock() {
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* 対応していなくてもOK */ }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (workout && document.visibilityState === "visible") acquireWakeLock();
+  });
+
+  $("workout-exit").addEventListener("click", () => exitWorkout());
+  $("btn-workout-done").addEventListener("click", () => exitWorkout());
 
   // ---------- 友達 ----------
   $("my-code").addEventListener("click", async () => {
@@ -388,7 +510,8 @@ function main() {
       // アプリを開いているときに届いた通知はバナー表示
       onMessage(messaging, (payload) => {
         const d = payload.data || {};
-        showBanner(d.senderUid, d.senderName || "友達", d.untilTime || "", d.message || "");
+        if (workout) addWorkoutBubble(d); // 筋トレ中はフキダシ付箋で貼る
+        else showBanner(d.senderUid, d.senderName || "友達", d.untilTime || "", d.message || "");
       });
     } catch (e) {
       console.error(e);

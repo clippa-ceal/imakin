@@ -142,6 +142,22 @@
     </nav>
   </section>
 
+  <!-- 筋トレ中の画面(時計 + フキダシ付箋) -->
+  <div id="workout-screen" class="workout-screen" hidden>
+    <div class="workout-head">
+      <p id="workout-until" class="workout-until"></p>
+      <button id="workout-exit" class="chip-x" aria-label="閉じる">×</button>
+    </div>
+    <div class="workout-clock">
+      <p class="workout-time"><span id="wo-hm">--:--</span><span id="wo-s" class="workout-sec">00</span></p>
+      <p id="wo-remain" class="workout-remain"></p>
+      <p id="workout-msg" class="workout-msg"></p>
+    </div>
+    <div id="bubble-layer" class="bubble-layer"></div>
+    <p id="workout-hint" class="workout-hint">友達からの返信がフキダシでここに貼られます</p>
+    <button id="btn-workout-done" class="btn primary big workout-done">💪 筋トレ終了</button>
+  </div>
+
   <!-- 受信バナー(アプリを開いているときに通知が来た場合) -->
   <div id="banner" class="banner" hidden>
     <div class="banner-body">

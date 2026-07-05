@@ -148,6 +148,58 @@ input:focus { border-color: var(--accent); }
 .banner-body p:first-child { font-weight: 700; font-size: 14px; }
 .banner-body p:last-child { font-size: 13px; }
 
+/* 筋トレ中の画面 */
+.workout-screen {
+  position: fixed; inset: 0; z-index: 40;
+  max-width: 480px; margin: 0 auto;
+  background: radial-gradient(120% 80% at 50% 0%, #1c2242 0%, var(--bg) 65%);
+  display: flex; flex-direction: column;
+  padding: calc(10px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+.workout-head {
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 2;
+}
+.workout-until { font-size: 14px; font-weight: 700; color: var(--accent2); }
+.workout-clock {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; pointer-events: none;
+}
+.workout-time {
+  font-size: min(19vw, 88px); font-weight: 800; line-height: 1; letter-spacing: .03em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 46px rgba(255, 122, 60, .35);
+}
+.workout-sec { font-size: .35em; font-weight: 700; color: var(--muted); margin-left: .2em; }
+.workout-remain { color: var(--accent2); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.workout-msg { color: var(--muted); font-size: 14px; }
+.workout-hint { color: var(--muted); font-size: 12px; text-align: center; margin-bottom: 8px; }
+.workout-done { position: relative; z-index: 2; margin-top: 0; }
+
+/* フキダシ付箋 */
+.bubble-layer { position: absolute; inset: 54px 6px 110px; z-index: 1; pointer-events: none; }
+.bubble {
+  position: absolute; max-width: 52%;
+  background: var(--bubble-bg, #ffe082); color: #241806;
+  border-radius: 14px; padding: 7px 11px 8px;
+  font-size: 13px; line-height: 1.35;
+  transform: rotate(var(--tilt, 0deg));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .45);
+  animation: bubble-pop .4s cubic-bezier(.18, 1.6, .4, 1);
+}
+.bubble::after {
+  content: ""; position: absolute; left: 16px; bottom: -8px;
+  border: 8px solid transparent; border-top: 9px solid var(--bubble-bg, #ffe082);
+  border-bottom: 0; border-right-width: 3px;
+}
+.bubble-name { display: block; font-size: 10px; font-weight: 800; opacity: .6; }
+.bubble-msg { font-weight: 700; word-break: break-word; }
+@keyframes bubble-pop {
+  from { transform: rotate(var(--tilt, 0deg)) scale(0); opacity: 0; }
+  60% { transform: rotate(var(--tilt, 0deg)) scale(1.12); }
+}
+
 /* toast */
 .toast {
   position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
