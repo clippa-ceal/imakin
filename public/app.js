@@ -67,6 +67,36 @@ function main() {
 
   $("btn-logout").addEventListener("click", () => signOut(auth));
 
+  // PWAインストール導線(Chromeがインストール可能と判断したときだけ出る)
+  let deferredInstall = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+    $("install-card").hidden = false;
+  });
+  $("btn-install").addEventListener("click", async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    await deferredInstall.userChoice.catch(() => {});
+    deferredInstall = null;
+    $("install-card").hidden = true;
+  });
+
+  // 表示名の変更
+  $("btn-save-name").addEventListener("click", async () => {
+    const name = $("display-name").value.trim();
+    if (!name) { toast("名前を入力してください"); return; }
+    try {
+      await updateDoc(doc(db, "users", me.uid), { name });
+      myProfile.name = name;
+      updateGreeting();
+      toast("名前を変更しました");
+    } catch (e) {
+      console.error(e);
+      toast("変更に失敗しました");
+    }
+  });
+
   onAuthStateChanged(auth, async (user) => {
     unsubscribers.forEach((u) => u());
     unsubscribers = [];
@@ -76,6 +106,7 @@ function main() {
     showScreen("main");
     $("home-greeting").textContent = `${myProfile.name} さん、今日もやりますか`;
     $("my-code").textContent = myProfile.friendCode;
+    $("display-name").value = myProfile.name;
     watchSettings();
     watchRequests();
     watchFriends();
@@ -142,6 +173,24 @@ function main() {
     $("msg-count").textContent = String($("message").value.length);
   });
 
+  // 時刻プリセット(今から+N分)
+  document.querySelectorAll("#time-presets .preset-chip").forEach((b) => {
+    b.addEventListener("click", () => {
+      const d = new Date(Date.now() + Number(b.dataset.min) * 60000);
+      untilInput.value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    });
+  });
+
+  // 定型メッセージ
+  document.querySelectorAll("#msg-presets .preset-chip").forEach((b) => {
+    b.addEventListener("click", () => {
+      $("message").value = b.textContent;
+      $("msg-count").textContent = String(b.textContent.length);
+    });
+  });
+
+  $("btn-goto-friends").addEventListener("click", () => switchTab("friends"));
+
   $("btn-send").addEventListener("click", async () => {
     const btn = $("btn-send");
     const untilTime = untilInput.value;
@@ -155,8 +204,12 @@ function main() {
       toast(replyTo ? `${replyTo.name}さんに返信しました💪` : "送信しました💪");
       $("message").value = "";
       $("msg-count").textContent = "0";
+      const withName = replyTo?.name || "";
       clearReply();
-      enterWorkout({ endTs: untilToTs(untilTime), untilTime, message, bubbles: [] });
+      enterWorkout({
+        endTs: untilToTs(untilTime), startTs: Date.now(),
+        untilTime, message, withName, bubbles: [],
+      });
       refreshChicks(); // 今日のひよこを反映
     } catch (e) {
       console.error(e);
@@ -191,15 +244,47 @@ function main() {
   const CHICK_COLOR_CYCLE = ["", "c-pink", "c-green", "c-blue", "c-purple", "c-orange"];
   let chickCounts = {};      // uid -> 直近14日の筋トレ日数
   let chickFriendUids = [];  // 友達のuid一覧(watchFriendsが更新)
+  let myDays = new Set();    // 自分の筋トレ日(直近14日、ストリーク計算用)
 
-  function chickCutoffDay() {
-    const d = new Date(Date.now() - 13 * 86400000);
+  const localDayStr = (t) => {
+    const d = new Date(t);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const chickCutoffDay = () => localDayStr(Date.now() - 13 * 86400000);
+
+  // 連続日数(今日まだやっていなくても昨日までの連続は生きている扱い)
+  function streakFrom(daySet, maxDays) {
+    let streak = 0;
+    for (let i = 0; i < maxDays; i++) {
+      if (daySet.has(localDayStr(Date.now() - i * 86400000))) streak++;
+      else if (i === 0) continue;
+      else break;
+    }
+    return streak;
+  }
+
+  function updateGreeting() {
+    if (!myProfile) return;
+    const streak = streakFrom(myDays, 14);
+    $("home-greeting").textContent = streak >= 2
+      ? `${myProfile.name} さん、${streak}日連続🔥 今日もやりますか`
+      : `${myProfile.name} さん、今日もやりますか`;
+  }
+
+  // 「HH:MM」の終了予定を、開始時刻を基準にタイムスタンプへ(夜またぎ対応)
+  function endTsFrom(startTs, untilTime) {
+    if (!startTs || !untilTime) return 0;
+    const [h, m] = String(untilTime).split(":").map(Number);
+    const d = new Date(startTs);
+    d.setHours(h, m, 0, 0);
+    if (d.getTime() <= startTs) d.setDate(d.getDate() + 1);
+    return d.getTime();
   }
 
   async function refreshChicks() {
     if (!me) return;
     const cutoff = chickCutoffDay();
+    const activeNow = [];
     await Promise.all([me.uid, ...chickFriendUids].map(async (uid) => {
       try {
         const snap = await getDocs(query(
@@ -207,9 +292,25 @@ function main() {
           where(documentId(), ">=", cutoff),
         ));
         chickCounts[uid] = snap.size;
+        if (uid === me.uid) myDays = new Set(snap.docs.map((d) => d.id));
+        // 友達が「いま筋トレ中」かどうか(今日の記録の終了予定がまだ先)
+        if (uid !== me.uid) {
+          snap.forEach((d) => {
+            const s = d.data();
+            const end = endTsFrom(s.lastStartAt, s.untilTime);
+            if (end && Date.now() < end && Date.now() - s.lastStartAt < 12 * 3600000) {
+              activeNow.push({ uid, untilTime: s.untilTime });
+            }
+          });
+        }
       } catch (e) { console.error(e); }
     }));
+    $("active-card").hidden = activeNow.length === 0;
+    $("active-list").textContent = activeNow
+      .map((a) => `${friendProfiles[a.uid]?.name || "友達"}(〜${a.untilTime})`)
+      .join(" ・ ");
     renderChicks();
+    updateGreeting();
   }
 
   function renderChicks() {
@@ -237,10 +338,11 @@ function main() {
         z.textContent = "まだなし";
         chicks.appendChild(z);
       } else {
+        const emoji = n >= 7 ? "🐔" : "🐤"; // 14日中7日以上でにわとりに育つ
         for (let i = 0; i < n; i++) {
           const c = document.createElement("span");
           c.className = "chick";
-          c.textContent = "🐤";
+          c.textContent = emoji;
           chicks.appendChild(c);
         }
       }
@@ -248,7 +350,8 @@ function main() {
       count.className = "chick-count";
       count.textContent = `${n}日`;
       li.append(name, chicks, count);
-      if (!r.self) li.addEventListener("click", () => cycleChickColor(r.uid, chicks));
+      if (r.self) li.addEventListener("click", () => switchTab("history"));
+      else li.addEventListener("click", () => cycleChickColor(r.uid, chicks));
       list.appendChild(li);
     }
   }
@@ -284,9 +387,18 @@ function main() {
       ));
       list.innerHTML = "";
       if (snap.empty) {
+        $("history-stats").hidden = true;
         list.innerHTML = `<li class="muted">まだ記録がありません。筋トレ開始を送るとここに残ります🐤</li>`;
         return;
       }
+      // 統計: 今月の日数と連続日数
+      const ids = new Set(snap.docs.map((d) => d.id));
+      const monthPrefix = localDayStr(Date.now()).slice(0, 7);
+      const monthCount = snap.docs.filter((d) => d.id.startsWith(monthPrefix)).length;
+      const streak = streakFrom(ids, 60);
+      $("history-stats").hidden = false;
+      $("history-stats").textContent =
+        `今月 ${monthCount}日` + (streak >= 2 ? ` ・ ${streak}日連続🔥` : "");
       const week = ["日", "月", "火", "水", "木", "金", "土"];
       snap.forEach((docSnap) => {
         const [y, mo, da] = docSnap.id.split("-").map(Number);
@@ -338,7 +450,8 @@ function main() {
   function enterWorkout(state) {
     workout = state;
     saveWorkout();
-    $("workout-until").textContent = `〜${state.untilTime} まで`;
+    $("workout-until").textContent =
+      `〜${state.untilTime} まで` + (state.withName ? `(${state.withName}さんと)` : "");
     $("workout-msg").textContent = state.message || "";
     $("workout-msg").hidden = !state.message;
     $("finish-panel").hidden = true;
@@ -360,8 +473,16 @@ function main() {
     $("wo-hm").textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     $("wo-s").textContent = String(now.getSeconds()).padStart(2, "0");
     const left = workout.endTs - now.getTime();
+    const startTs = workout.startTs || (workout.endTs - 3600000);
+    const prog = Math.min(1, Math.max(0, (now.getTime() - startTs) / (workout.endTs - startTs)));
+    $("wo-bar").style.width = (prog * 100).toFixed(1) + "%";
     if (left <= 0) {
       $("wo-remain").textContent = "時間だ!お疲れさま 💪";
+      if (!workout.celebrated) {
+        workout.celebrated = true;
+        saveWorkout();
+        celebrate();
+      }
       return;
     }
     const s = Math.floor(left / 1000);
@@ -415,6 +536,7 @@ function main() {
     saveWorkout();
     $("workout-hint").hidden = true;
     renderBubble(b);
+    navigator.vibrate?.(80); // 着弾の手応え
   }
 
   function renderBubble(b) {
@@ -458,6 +580,14 @@ function main() {
     }
     el.addEventListener("click", () => openStampPicker(b, el));
     $("bubble-layer").appendChild(el);
+    fadeOldBubbles();
+  }
+
+  // フキダシが増えすぎたら古いものを小さく薄くする(直近12個をくっきり表示)
+  function fadeOldBubbles() {
+    const kids = [...$("bubble-layer").children];
+    const over = kids.length - 12;
+    kids.forEach((el, i) => el.classList.toggle("old", i < over));
   }
 
   // ---------- フキダシへのスタンプ ----------
@@ -506,6 +636,22 @@ function main() {
     } catch (e) {
       console.error(e);
       toast("スタンプを送れませんでした");
+    }
+  }
+
+  // 時間切れのお祝い(紙吹雪+バイブ)
+  function celebrate() {
+    navigator.vibrate?.([120, 60, 120]);
+    const colors = ["#ff7a3c", "#ffb03c", "#a5d6a7", "#90caf9", "#f48fb1", "#ffe082"];
+    const host = $("workout-screen");
+    for (let i = 0; i < 26; i++) {
+      const p = document.createElement("span");
+      p.className = "confetti";
+      p.style.left = Math.random() * 100 + "%";
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * 0.8).toFixed(2) + "s";
+      host.appendChild(p);
+      setTimeout(() => p.remove(), 4200);
     }
   }
 
@@ -560,6 +706,15 @@ function main() {
       await navigator.clipboard.writeText(myProfile.friendCode);
       toast("コードをコピーしました");
     } catch { /* http環境などでは失敗する */ }
+  });
+
+  // 友達コードを共有(共有シート非対応ならコピー)
+  $("btn-share-code").addEventListener("click", async () => {
+    const text = `イマキン💪で友達になろう!\n友達コード: ${myProfile.friendCode}\n${location.origin}`;
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else { await navigator.clipboard.writeText(text); toast("招待メッセージをコピーしました"); }
+    } catch { /* 共有キャンセル時は何もしない */ }
   });
 
   $("btn-add-friend").addEventListener("click", async () => {
@@ -638,6 +793,7 @@ function main() {
         if (other) uids.push({ uid: other, fid: d.id });
       });
       chickFriendUids = uids.map((u) => u.uid);
+      $("no-friends-card").hidden = uids.length > 0;
       refreshChicks();
       // プロフィールを取得(キャッシュ利用)
       await Promise.all(uids.map(async ({ uid }) => {
@@ -764,6 +920,7 @@ function main() {
         const d = payload.data || {};
         if (workout) addWorkoutBubble(d); // 筋トレ中はフキダシ付箋で貼る
         else showBanner(d.senderUid, d.senderName || "友達", d.untilTime || "", d.message || "", d.kind || "start");
+        if ((d.kind || "start") === "start") refreshChicks(); // 「いま筋トレ中」を更新
       });
     } catch (e) {
       console.error(e);
@@ -783,6 +940,18 @@ function main() {
       $("banner-msg").textContent = `${untilTime}まで` + (message ? `「${message}」` : "");
     }
     $("banner").hidden = false;
+    // 👍だけ返す(スタンプ通知には出さない)
+    $("banner-like").hidden = kind === "stamp";
+    $("banner-like").onclick = async () => {
+      $("banner").hidden = true;
+      try {
+        await httpsCallable(functions, "sendWorkout")({ kind: "stamp", message: "👍", replyTo: uid });
+        toast(`${name} さんに 👍 を送りました`);
+      } catch (e) {
+        console.error(e);
+        toast("送れませんでした");
+      }
+    };
     $("banner-reply").onclick = () => { $("banner").hidden = true; setReply(uid, name); };
     $("banner-close").onclick = () => { $("banner").hidden = true; };
     clearTimeout(showBanner._t);

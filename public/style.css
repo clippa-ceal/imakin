@@ -71,6 +71,16 @@ input:focus { border-color: var(--accent); }
 .btn:disabled { opacity: .45; }
 
 .row { display: flex; align-items: center; gap: 10px; }
+
+/* プリセットチップ(時刻・定型メッセージ) */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-row.msg-presets { margin-top: 10px; }
+.preset-chip {
+  background: var(--card2); border: 1px solid #3a4368; border-radius: 999px;
+  color: var(--text); font-size: 13px; padding: 6px 12px; cursor: pointer;
+  transition: transform .05s;
+}
+.preset-chip:active { transform: scale(.94); }
 .row.space-between { justify-content: space-between; }
 .divider { height: 1px; background: #2c3454; margin: 4px 0; }
 
@@ -156,7 +166,6 @@ input:focus { border-color: var(--accent); }
 
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
-.chick-row.self { cursor: default; }
 .chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }
 .chick-row .chicks { flex: 1; display: flex; flex-wrap: wrap; font-size: 20px; line-height: 1.25; }
 .chick { display: inline-block; }
@@ -194,6 +203,25 @@ input:focus { border-color: var(--accent); }
 .workout-sec { font-size: .35em; font-weight: 700; color: var(--muted); margin-left: .2em; }
 .workout-remain { color: var(--accent2); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .workout-msg { color: var(--muted); font-size: 14px; }
+.workout-progress {
+  width: min(70vw, 320px); height: 6px; margin-top: 4px;
+  background: #2c3454; border-radius: 3px; overflow: hidden;
+}
+#wo-bar {
+  height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px; transition: width 1s linear;
+}
+
+/* 時間切れの紙吹雪 */
+.confetti {
+  position: absolute; top: -20px; width: 10px; height: 14px; z-index: 2;
+  border-radius: 2px; pointer-events: none;
+  animation: confetti-fall 2.8s ease-in forwards;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(110vh) rotate(720deg); opacity: .85; }
+}
 .workout-hint { color: var(--muted); font-size: 12px; text-align: center; margin-bottom: 8px; }
 .workout-done { position: relative; z-index: 2; margin-top: 0; }
 
@@ -215,6 +243,10 @@ input:focus { border-color: var(--accent); }
   border-bottom: 0; border-right-width: 3px;
 }
 .bubble-name { display: block; font-size: 10px; font-weight: 800; opacity: .6; }
+.bubble-layer .old {
+  opacity: .4; transition: opacity .4s, transform .4s;
+  transform: rotate(var(--tilt, 0deg)) scale(.78);
+}
 .bubble-msg { font-weight: 700; word-break: break-word; }
 @keyframes bubble-pop {
   from { transform: rotate(var(--tilt, 0deg)) scale(0); opacity: 0; }
