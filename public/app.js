@@ -263,6 +263,16 @@ function main() {
     return streak;
   }
 
+  // 今週(月曜はじまり)の筋トレ日数
+  function thisWeekCount() {
+    const dow = (new Date().getDay() + 6) % 7; // 月曜=0
+    let c = 0;
+    for (let i = 0; i <= dow; i++) {
+      if (myDays.has(localDayStr(Date.now() - i * 86400000))) c++;
+    }
+    return c;
+  }
+
   function updateGreeting() {
     if (!myProfile) return;
     const streak = streakFrom(myDays, 14);
@@ -316,6 +326,14 @@ function main() {
   function renderChicks() {
     const list = $("chick-list");
     if (!me) return;
+    // 今週の進捗(週目標があれば ◯/◯日)
+    const goal = mySettings?.weeklyGoal || 0;
+    const wc = thisWeekCount();
+    const wp = $("week-progress");
+    wp.hidden = false;
+    wp.textContent = goal > 0
+      ? (wc >= goal ? `今週 ${wc}/${goal}日 — 目標達成🎉` : `今週 ${wc}/${goal}日`)
+      : `今週 ${wc}日`;
     list.innerHTML = "";
     const rows = [
       { uid: me.uid, name: "あなた", self: true },
@@ -370,6 +388,22 @@ function main() {
   }
 
   // ---------- 記録(セッション履歴) ----------
+  const MOOD_EMOJI = { fire: "🔥", good: "😊", meh: "🫠" };
+
+  // 週の目標設定
+  document.querySelectorAll("#goal-chips .preset-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      updateDoc(settingsRef(), { weeklyGoal: Number(btn.dataset.goal) });
+      toast(btn.dataset.goal === "0" ? "目標をなしにしました" : `目標を${btn.textContent}にしました💪`);
+    });
+  });
+  function renderGoalChips() {
+    const g = mySettings?.weeklyGoal || 0;
+    document.querySelectorAll("#goal-chips .preset-chip").forEach((b) => {
+      b.classList.toggle("active", Number(b.dataset.goal) === g);
+    });
+  }
+
   const fmtTime = (ts) => {
     const d = new Date(ts);
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -412,7 +446,9 @@ function main() {
         li.className = "history-day";
         const head = document.createElement("div");
         head.className = "history-date";
-        head.textContent = `${mo}月${da}日(${week[date.getDay()]}) ` + "🐤".repeat(Math.min(starts.length, 5));
+        head.textContent = `${mo}月${da}日(${week[date.getDay()]}) `
+          + "🐤".repeat(Math.min(starts.length, 5))
+          + (s.mood ? ` ${MOOD_EMOJI[s.mood] || ""}` : "");
         const ul = document.createElement("ul");
         ul.className = "history-starts";
         for (const st of starts) {
@@ -671,14 +707,37 @@ function main() {
     return [...new Set((workout?.bubbles || []).map((b) => b.uid).filter(Boolean))];
   }
 
+  // 振り返り(気分3択)。その日のsessionsドキュメントに保存
+  let finishMood = null;
+  document.querySelectorAll(".mood-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      finishMood = btn.dataset.mood;
+      document.querySelectorAll(".mood-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    });
+  });
+  function saveMood() {
+    if (!finishMood || !workout) return;
+    const day = localDayStr(workout.startTs || Date.now());
+    updateDoc(doc(db, "users", me.uid, "sessions", day), { mood: finishMood, moodAt: Date.now() })
+      .catch(console.error); // 記録がまだ無い日などは黙って諦める
+  }
+
   $("btn-workout-done").addEventListener("click", () => {
     const reacted = workoutReactedUids();
-    if (reacted.length === 0) { exitWorkout(); return; } // 反応が無ければそのまま終了
-    $("finish-label").textContent =
-      `お疲れさま🎉 反応をくれた${reacted.length}人に「終わったよ」を送る?(20文字まで)`;
+    finishMood = null;
+    document.querySelectorAll(".mood-btn").forEach((b) => b.classList.remove("active"));
+    // 「終わったよ」送信は反応をくれた人がいるときだけ
+    $("finish-send-area").hidden = reacted.length === 0;
+    $("btn-finish-send").hidden = reacted.length === 0;
+    $("btn-finish-skip").textContent = reacted.length === 0 ? "終了する" : "送らずに終了";
+    if (reacted.length > 0) {
+      $("finish-label").textContent =
+        `反応をくれた${reacted.length}人に「終わったよ」を送る?(20文字まで)`;
+    }
     $("finish-panel").hidden = false;
   });
   $("btn-finish-skip").addEventListener("click", () => {
+    saveMood();
     $("finish-panel").hidden = true;
     exitWorkout(true);
   });
@@ -690,6 +749,7 @@ function main() {
       const send = httpsCallable(functions, "sendWorkout");
       await send({ kind: "done", message, to: workoutReactedUids() });
       toast("筋トレ終了を知らせました🎉");
+      saveMood();
       $("finish-panel").hidden = true;
       exitWorkout(true);
     } catch (e) {
@@ -837,7 +897,8 @@ function main() {
       $("time-start").value = mySettings.timeStart || "00:00";
       $("time-end").value = mySettings.timeEnd || "23:59";
       renderNotifyStatus();
-      renderChicks(); // ひよこの色設定を反映
+      renderGoalChips();
+      renderChicks(); // ひよこの色設定・週目標を反映
     }));
   }
 

@@ -89,6 +89,7 @@
 
       <div class="card">
         <p class="field-label">🐤 筋トレ記録(直近14日)</p>
+        <p id="week-progress" class="week-progress" hidden></p>
         <ul id="chick-list" class="plain-list"></ul>
         <p class="muted small">筋トレ開始を送った日にひよこが1羽増えます(7日以上でにわとりに育ちます🐔)。あなたの行をタップで記録ページ、友達の行をタップで色替え</p>
       </div>
@@ -97,6 +98,17 @@
     <!-- 記録 -->
     <div id="tab-history" class="tab-page" hidden>
       <header class="page-head"><h2>筋トレの記録</h2></header>
+      <div class="card">
+        <p class="field-label">🎯 週の目標</p>
+        <div class="chip-row" id="goal-chips">
+          <button class="preset-chip" data-goal="0">なし</button>
+          <button class="preset-chip" data-goal="2">週2日</button>
+          <button class="preset-chip" data-goal="3">週3日</button>
+          <button class="preset-chip" data-goal="4">週4日</button>
+          <button class="preset-chip" data-goal="5">週5日</button>
+        </div>
+        <p class="muted small">ホームの記録カードに「今週 ◯/◯日」で表示されます(月曜はじまり)</p>
+      </div>
       <div class="card">
         <p id="history-stats" class="field-label" hidden></p>
         <ul id="history-list" class="plain-list"></ul>
@@ -213,8 +225,16 @@
     <p id="workout-hint" class="workout-hint">友達からの返信がフキダシでここに貼られます。フキダシはタップでスタンプを押せます</p>
     <div id="stamp-picker" class="stamp-picker" hidden></div>
     <div id="finish-panel" class="finish-panel" hidden>
-      <p id="finish-label" class="field-label">お疲れさま🎉 「終わったよ」を送る?(20文字まで)</p>
-      <input type="text" id="finish-message" maxlength="20" placeholder="やり切った!">
+      <p class="field-label">今日の筋トレはどうだった?</p>
+      <div class="row" id="mood-row">
+        <button class="mood-btn" data-mood="fire">🔥<span>やり切った</span></button>
+        <button class="mood-btn" data-mood="good">😊<span>ぼちぼち</span></button>
+        <button class="mood-btn" data-mood="meh">🫠<span>さぼり気味</span></button>
+      </div>
+      <div id="finish-send-area">
+        <p id="finish-label" class="field-label">「終わったよ」を送る?(20文字まで)</p>
+        <input type="text" id="finish-message" maxlength="20" placeholder="やり切った!">
+      </div>
       <div class="row">
         <button id="btn-finish-send" class="btn primary">🎉 送って終了</button>
         <button id="btn-finish-skip" class="btn ghost">送らずに終了</button>

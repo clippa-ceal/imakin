@@ -287,6 +287,23 @@ input:focus { border-color: var(--accent); }
 .stamp-btn { background: none; border: none; font-size: 30px; cursor: pointer; padding: 2px 8px; transition: transform .08s; }
 .stamp-btn:active { transform: scale(1.25); }
 
+/* 気分3択(振り返り) */
+.mood-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--card2); border: 1px solid #3a4368; border-radius: 12px;
+  color: var(--muted); font-size: 24px; padding: 8px 4px; cursor: pointer;
+  transition: transform .08s;
+}
+.mood-btn span { font-size: 10px; font-weight: 700; }
+.mood-btn.active { border-color: var(--accent); color: var(--accent2); background: #2a2338; }
+.mood-btn:active { transform: scale(1.08); }
+
+/* 週目標の選択中チップ */
+.preset-chip.active { border-color: var(--accent); color: var(--accent2); font-weight: 700; }
+
+/* 今週の進捗 */
+.week-progress { font-size: 13px; font-weight: 700; color: var(--accent2); }
+
 /* 終了パネル */
 .finish-panel {
   position: absolute; left: 16px; right: 16px;
