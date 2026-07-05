@@ -148,6 +148,20 @@ input:focus { border-color: var(--accent); }
 .banner-body p:first-child { font-weight: 700; font-size: 14px; }
 .banner-body p:last-child { font-size: 13px; }
 
+/* ひよこ(筋トレ記録) */
+.chick-row { cursor: pointer; }
+.chick-row.self { cursor: default; }
+.chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }
+.chick-row .chicks { flex: 1; display: flex; flex-wrap: wrap; font-size: 20px; line-height: 1.25; }
+.chick { display: inline-block; }
+.chick-count { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+/* ひよこの色(絵文字を色相シフトで着色) */
+.c-pink .chick { filter: hue-rotate(285deg) saturate(1.6); }
+.c-green .chick { filter: hue-rotate(55deg) saturate(1.2); }
+.c-blue .chick { filter: hue-rotate(165deg) saturate(1.4); }
+.c-purple .chick { filter: hue-rotate(215deg) saturate(1.3); }
+.c-orange .chick { filter: hue-rotate(-22deg) saturate(1.6); }
+
 /* 筋トレ中の画面 */
 .workout-screen {
   position: fixed; inset: 0; z-index: 40;

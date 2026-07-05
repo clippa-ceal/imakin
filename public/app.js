@@ -6,7 +6,7 @@ import {
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, query, where, onSnapshot, runTransaction,
-  serverTimestamp, deleteField, getDocs,
+  serverTimestamp, deleteField, getDocs, documentId,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getMessaging, getToken, onMessage, isSupported as messagingSupported,
@@ -156,6 +156,7 @@ function main() {
       $("msg-count").textContent = "0";
       clearReply();
       enterWorkout({ endTs: untilToTs(untilTime), untilTime, message, bubbles: [] });
+      refreshChicks(); // 今日のひよこを反映
     } catch (e) {
       console.error(e);
       toast("送信に失敗しました: " + (e.message || e.code));
@@ -183,6 +184,85 @@ function main() {
       setReply(p.get("replyTo"), p.get("name") || "友達");
       history.replaceState(null, "", location.pathname);
     }
+  }
+
+  // ---------- ひよこ(直近14日の筋トレ記録) ----------
+  const CHICK_COLOR_CYCLE = ["", "c-pink", "c-green", "c-blue", "c-purple", "c-orange"];
+  let chickCounts = {};      // uid -> 直近14日の筋トレ日数
+  let chickFriendUids = [];  // 友達のuid一覧(watchFriendsが更新)
+
+  function chickCutoffDay() {
+    const d = new Date(Date.now() - 13 * 86400000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  async function refreshChicks() {
+    if (!me) return;
+    const cutoff = chickCutoffDay();
+    await Promise.all([me.uid, ...chickFriendUids].map(async (uid) => {
+      try {
+        const snap = await getDocs(query(
+          collection(db, "users", uid, "sessions"),
+          where(documentId(), ">=", cutoff),
+        ));
+        chickCounts[uid] = snap.size;
+      } catch (e) { console.error(e); }
+    }));
+    renderChicks();
+  }
+
+  function renderChicks() {
+    const list = $("chick-list");
+    if (!me) return;
+    list.innerHTML = "";
+    const rows = [
+      { uid: me.uid, name: "あなた", self: true },
+      ...chickFriendUids.map((u) => ({ uid: u, name: friendProfiles[u]?.name || "友達" })),
+    ];
+    for (const r of rows) {
+      const n = Math.min(chickCounts[r.uid] || 0, 14);
+      const li = document.createElement("li");
+      li.className = "chick-row" + (r.self ? " self" : "");
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = r.name;
+      const chicks = document.createElement("span");
+      chicks.className = "chicks";
+      const color = r.self ? "" : (mySettings?.chickColors?.[r.uid] || "");
+      if (color) chicks.classList.add(color);
+      if (n === 0) {
+        const z = document.createElement("span");
+        z.className = "muted small";
+        z.textContent = "まだなし";
+        chicks.appendChild(z);
+      } else {
+        for (let i = 0; i < n; i++) {
+          const c = document.createElement("span");
+          c.className = "chick";
+          c.textContent = "🐤";
+          chicks.appendChild(c);
+        }
+      }
+      const count = document.createElement("span");
+      count.className = "chick-count";
+      count.textContent = `${n}日`;
+      li.append(name, chicks, count);
+      if (!r.self) li.addEventListener("click", () => cycleChickColor(r.uid, chicks));
+      list.appendChild(li);
+    }
+  }
+
+  function cycleChickColor(uid, chicksEl) {
+    const cur = mySettings?.chickColors?.[uid] || "";
+    const next = CHICK_COLOR_CYCLE[(CHICK_COLOR_CYCLE.indexOf(cur) + 1) % CHICK_COLOR_CYCLE.length];
+    CHICK_COLOR_CYCLE.forEach((c) => c && chicksEl.classList.remove(c));
+    if (next) chicksEl.classList.add(next);
+    if (!mySettings) mySettings = {};
+    if (!mySettings.chickColors) mySettings.chickColors = {};
+    mySettings.chickColors[uid] = next; // 先にローカル反映(タップの手応え優先)
+    updateDoc(doc(db, "users", me.uid, "private", "settings"), {
+      [`chickColors.${uid}`]: next || deleteField(),
+    }).catch(console.error);
   }
 
   // ---------- 筋トレ中の画面(時計 + フキダシ付箋) ----------
@@ -493,6 +573,8 @@ function main() {
         const other = d.data().users.find((u) => u !== me.uid);
         if (other) uids.push({ uid: other, fid: d.id });
       });
+      chickFriendUids = uids.map((u) => u.uid);
+      refreshChicks();
       // プロフィールを取得(キャッシュ利用)
       await Promise.all(uids.map(async ({ uid }) => {
         if (!friendProfiles[uid]) {
@@ -536,6 +618,7 @@ function main() {
       $("time-start").value = mySettings.timeStart || "00:00";
       $("time-end").value = mySettings.timeEnd || "23:59";
       renderSnooze();
+      renderChicks(); // ひよこの色設定を反映
     }));
   }
 

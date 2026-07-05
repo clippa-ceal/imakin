@@ -16,6 +16,11 @@ service cloud.firestore {
       match /fcmTokens/{token} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
+
+      // 筋トレ記録(docId = YYYY-MM-DD)。書き込みはCloud Functionsのみ
+      match /sessions/{day} {
+        allow read: if request.auth != null;
+      }
     }
 
     // 友達コード → uid の逆引き

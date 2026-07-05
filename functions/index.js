@@ -56,6 +56,15 @@ exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
   if (!senderSnap.exists) throw new HttpsError("failed-precondition", "ユーザー情報がありません");
   const senderName = senderSnap.data().name || "友達";
 
+  // セッション記録: 筋トレした「日」だけ残す(内容は今はミニマム、将来拡張する)
+  if (kind === "start") {
+    const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date());
+    await db.doc(`users/${uid}/sessions/${day}`).set(
+      { lastStartAt: Date.now(), untilTime },
+      { merge: true },
+    );
+  }
+
   // 送信先: 返信なら相手1人、通常は友達全員
   const friendsSnap = await db.collection("friends").where("users", "array-contains", uid).get();
   const friendUids = friendsSnap.docs
