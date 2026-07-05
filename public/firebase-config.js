@@ -1,12 +1,12 @@
-// Firebaseコンソール → プロジェクトの設定 → マイアプリ(ウェブ) からコピーして貼り付ける
+// Firebaseコンソール → プロジェクトの設定 → マイアプリ(ウェブ) の値
 // ※ この値は「秘密」ではないので、そのままGitにコミットしてOKです
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId: "PASTE_APP_ID",
+  apiKey: "AIzaSyDVecx5qNf9dViBI44a8et1oej5iK-4irk",
+  authDomain: "imakin-2e8b9.firebaseapp.com",
+  projectId: "imakin-2e8b9",
+  storageBucket: "imakin-2e8b9.firebasestorage.app",
+  messagingSenderId: "721006229188",
+  appId: "1:721006229188:web:4f55b81946551d27b23b91",
 };
 
 // Firebaseコンソール → プロジェクトの設定 → Cloud Messaging →
