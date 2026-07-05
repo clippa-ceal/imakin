@@ -206,6 +206,10 @@ function main() {
     $("workout-until").textContent = `〜${state.untilTime} まで`;
     $("workout-msg").textContent = state.message || "";
     $("workout-msg").hidden = !state.message;
+    $("finish-panel").hidden = true;
+    $("finish-message").value = "";
+    $("stamp-picker").hidden = true;
+    stampTarget = null;
     $("bubble-layer").innerHTML = "";
     $("workout-hint").hidden = state.bubbles.length > 0;
     state.bubbles.forEach(renderBubble);
@@ -266,6 +270,7 @@ function main() {
       name: d.senderName || "友達",
       message: d.message || "",
       untilTime: d.untilTime || "",
+      kind: d.kind || "start",
       x: 4 + Math.random() * 44,   // %(フキダシの幅ぶん右端を空ける)
       y: 6 + Math.random() * 72,   // %
       tilt: +(Math.random() * 14 - 7).toFixed(1),
@@ -278,6 +283,23 @@ function main() {
   }
 
   function renderBubble(b) {
+    // 相手が押してくれたスタンプはハンコ風に表示
+    if (b.kind === "stamp") {
+      const el = document.createElement("div");
+      el.className = "stamp-float";
+      el.style.left = b.x + "%";
+      el.style.top = b.y + "%";
+      el.style.setProperty("--tilt", b.tilt + "deg");
+      const em = document.createElement("span");
+      em.className = "stamp-emoji";
+      em.textContent = b.message || "👍";
+      const nm = document.createElement("span");
+      nm.className = "stamp-name";
+      nm.textContent = b.name;
+      el.append(em, nm);
+      $("bubble-layer").appendChild(el);
+      return;
+    }
     const el = document.createElement("div");
     el.className = "bubble";
     el.style.left = b.x + "%";
@@ -286,12 +308,70 @@ function main() {
     el.style.setProperty("--bubble-bg", bubbleColor(b.uid));
     const name = document.createElement("span");
     name.className = "bubble-name";
-    name.textContent = b.untilTime ? `${b.name}・〜${b.untilTime}` : b.name;
+    name.textContent =
+      b.kind === "done" ? `${b.name}・筋トレ終了🎉`
+      : b.untilTime ? `${b.name}・〜${b.untilTime}` : b.name;
     const msg = document.createElement("span");
     msg.className = "bubble-msg";
     msg.textContent = b.message || "💪🔥";
     el.append(name, msg);
+    if (b.stamp) {
+      const mark = document.createElement("span");
+      mark.className = "bubble-stamp";
+      mark.textContent = b.stamp;
+      el.appendChild(mark);
+    }
+    el.addEventListener("click", () => openStampPicker(b, el));
     $("bubble-layer").appendChild(el);
+  }
+
+  // ---------- フキダシへのスタンプ ----------
+  const STAMPS = ["👍", "🔥", "💪", "🤣"];
+  let stampTarget = null; // { b, el }
+  {
+    const picker = $("stamp-picker");
+    STAMPS.forEach((s) => {
+      const btn = document.createElement("button");
+      btn.className = "stamp-btn";
+      btn.textContent = s;
+      btn.addEventListener("click", () => applyStamp(s));
+      picker.appendChild(btn);
+    });
+    const x = document.createElement("button");
+    x.className = "chip-x";
+    x.textContent = "×";
+    x.addEventListener("click", () => { picker.hidden = true; stampTarget = null; });
+    picker.appendChild(x);
+  }
+
+  function openStampPicker(b, el) {
+    stampTarget = { b, el };
+    $("stamp-picker").hidden = false;
+  }
+
+  async function applyStamp(emoji) {
+    if (!stampTarget) return;
+    const { b, el } = stampTarget;
+    stampTarget = null;
+    $("stamp-picker").hidden = true;
+    b.stamp = emoji;
+    saveWorkout();
+    let mark = el.querySelector(".bubble-stamp");
+    if (!mark) {
+      mark = document.createElement("span");
+      mark.className = "bubble-stamp";
+      el.appendChild(mark);
+    }
+    mark.textContent = emoji;
+    if (!b.uid) return;
+    try {
+      const send = httpsCallable(functions, "sendWorkout");
+      await send({ kind: "stamp", message: emoji, replyTo: b.uid });
+      toast(`${b.name} さんに ${emoji} を送りました`);
+    } catch (e) {
+      console.error(e);
+      toast("スタンプを送れませんでした");
+    }
   }
 
   // 筋トレ中は画面をスリープさせない(非対応ブラウザでは何もしない)
@@ -303,7 +383,32 @@ function main() {
   });
 
   $("workout-exit").addEventListener("click", () => exitWorkout());
-  $("btn-workout-done").addEventListener("click", () => exitWorkout());
+
+  // ---------- 筋トレ終了(「終わったよ」メッセージ) ----------
+  $("btn-workout-done").addEventListener("click", () => {
+    $("finish-panel").hidden = false;
+  });
+  $("btn-finish-skip").addEventListener("click", () => {
+    $("finish-panel").hidden = true;
+    exitWorkout(true);
+  });
+  $("btn-finish-send").addEventListener("click", async () => {
+    const btn = $("btn-finish-send");
+    const message = $("finish-message").value.trim();
+    btn.disabled = true;
+    try {
+      const send = httpsCallable(functions, "sendWorkout");
+      await send({ kind: "done", message });
+      toast("筋トレ終了を知らせました🎉");
+      $("finish-panel").hidden = true;
+      exitWorkout(true);
+    } catch (e) {
+      console.error(e);
+      toast("送信に失敗しました: " + (e.message || e.code));
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // ---------- 友達 ----------
   $("my-code").addEventListener("click", async () => {
@@ -511,7 +616,7 @@ function main() {
       onMessage(messaging, (payload) => {
         const d = payload.data || {};
         if (workout) addWorkoutBubble(d); // 筋トレ中はフキダシ付箋で貼る
-        else showBanner(d.senderUid, d.senderName || "友達", d.untilTime || "", d.message || "");
+        else showBanner(d.senderUid, d.senderName || "友達", d.untilTime || "", d.message || "", d.kind || "start");
       });
     } catch (e) {
       console.error(e);
@@ -519,9 +624,17 @@ function main() {
     }
   }
 
-  function showBanner(uid, name, untilTime, message) {
-    $("banner-title").textContent = `💪 ${name} が筋トレ開始!`;
-    $("banner-msg").textContent = `${untilTime}まで` + (message ? `「${message}」` : "");
+  function showBanner(uid, name, untilTime, message, kind = "start") {
+    if (kind === "done") {
+      $("banner-title").textContent = `🎉 ${name} が筋トレ終了!`;
+      $("banner-msg").textContent = message ? `「${message}」` : "お疲れさま!";
+    } else if (kind === "stamp") {
+      $("banner-title").textContent = `${name} がスタンプを押したよ`;
+      $("banner-msg").textContent = message || "👍";
+    } else {
+      $("banner-title").textContent = `💪 ${name} が筋トレ開始!`;
+      $("banner-msg").textContent = `${untilTime}まで` + (message ? `「${message}」` : "");
+    }
     $("banner").hidden = false;
     $("banner-reply").onclick = () => { $("banner").hidden = true; setReply(uid, name); };
     $("banner-close").onclick = () => { $("banner").hidden = true; };

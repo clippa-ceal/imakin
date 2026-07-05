@@ -18,12 +18,23 @@ const messaging = firebase.messaging();
 // data-onlyメッセージを通知として表示する
 messaging.onBackgroundMessage((payload) => {
   const d = payload.data || {};
-  const title = `💪 ${d.senderName || "友達"} が筋トレ開始!`;
-  const body = `${d.untilTime || ""}まで` + (d.message ? `「${d.message}」` : "");
+  const name = d.senderName || "友達";
+  const kind = d.kind || "start";
+  let title, body;
+  if (kind === "done") {
+    title = `🎉 ${name} が筋トレ終了!`;
+    body = d.message ? `「${d.message}」` : "お疲れさま!";
+  } else if (kind === "stamp") {
+    title = `${name} がスタンプを押したよ`;
+    body = d.message || "👍";
+  } else {
+    title = `💪 ${name} が筋トレ開始!`;
+    body = `${d.untilTime || ""}まで` + (d.message ? `「${d.message}」` : "");
+  }
   self.registration.showNotification(title, {
     body,
     icon: "/icon-192.png",
-    tag: "workout-" + (d.senderUid || ""),
+    tag: kind + "-" + (d.senderUid || ""),
     data: { url: `/?replyTo=${d.senderUid || ""}&name=${encodeURIComponent(d.senderName || "")}` },
   });
 });

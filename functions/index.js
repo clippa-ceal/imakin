@@ -29,16 +29,24 @@ function nowInWindow(start, end) {
  * - 通知はどこにも保存しない(あとから参照できない仕様)
  * - 誰に届いたかは呼び出し元に返さない(既読不明の仕様)
  */
+const STAMPS = ["👍", "🔥", "💪", "🤣"];
+
 exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
   if (!req.auth) throw new HttpsError("unauthenticated", "ログインが必要です");
   const uid = req.auth.uid;
 
-  const untilTime = String(req.data?.untilTime || "");
+  // kind: start=筋トレ開始(既定) / done=終了報告 / stamp=フキダシへのスタンプ
+  const kind = ["start", "done", "stamp"].includes(req.data?.kind) ? req.data.kind : "start";
+  const untilTime = kind === "start" ? String(req.data?.untilTime || "") : "";
   const message = String(req.data?.message || "").trim();
   const replyTo = req.data?.replyTo ? String(req.data.replyTo) : null;
 
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(untilTime)) {
+  if (kind === "start" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(untilTime)) {
     throw new HttpsError("invalid-argument", "終了時刻の形式が不正です");
+  }
+  if (kind === "stamp") {
+    if (!STAMPS.includes(message)) throw new HttpsError("invalid-argument", "スタンプが不正です");
+    if (!replyTo) throw new HttpsError("invalid-argument", "スタンプの宛先がありません");
   }
   if ([...message].length > 20) {
     throw new HttpsError("invalid-argument", "メッセージは20文字までです");
@@ -83,7 +91,7 @@ exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
     // data-onlyメッセージ: 表示はService Worker側で行う
     const res = await getMessaging().sendEachForMulticast({
       tokens,
-      data: { senderUid: uid, senderName, untilTime, message },
+      data: { senderUid: uid, senderName, untilTime, message, kind },
       webpush: { headers: { Urgency: "high", TTL: "3600" } },
     });
     // 無効になったトークンを掃除

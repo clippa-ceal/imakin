@@ -154,7 +154,16 @@
       <p id="workout-msg" class="workout-msg"></p>
     </div>
     <div id="bubble-layer" class="bubble-layer"></div>
-    <p id="workout-hint" class="workout-hint">友達からの返信がフキダシでここに貼られます</p>
+    <p id="workout-hint" class="workout-hint">友達からの返信がフキダシでここに貼られます。フキダシはタップでスタンプを押せます</p>
+    <div id="stamp-picker" class="stamp-picker" hidden></div>
+    <div id="finish-panel" class="finish-panel" hidden>
+      <p class="field-label">お疲れさま🎉 「終わったよ」を友達に送る?(20文字まで)</p>
+      <input type="text" id="finish-message" maxlength="20" placeholder="やり切った!">
+      <div class="row">
+        <button id="btn-finish-send" class="btn primary">🎉 送って終了</button>
+        <button id="btn-finish-skip" class="btn ghost">送らずに終了</button>
+      </div>
+    </div>
     <button id="btn-workout-done" class="btn primary big workout-done">💪 筋トレ終了</button>
   </div>
 

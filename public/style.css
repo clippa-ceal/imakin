@@ -181,6 +181,7 @@ input:focus { border-color: var(--accent); }
 .bubble-layer { position: absolute; inset: 54px 6px 110px; z-index: 1; pointer-events: none; }
 .bubble {
   position: absolute; max-width: 52%;
+  pointer-events: auto; cursor: pointer;
   background: var(--bubble-bg, #ffe082); color: #241806;
   border-radius: 14px; padding: 7px 11px 8px;
   font-size: 13px; line-height: 1.35;
@@ -199,6 +200,48 @@ input:focus { border-color: var(--accent); }
   from { transform: rotate(var(--tilt, 0deg)) scale(0); opacity: 0; }
   60% { transform: rotate(var(--tilt, 0deg)) scale(1.12); }
 }
+
+/* フキダシに押されたスタンプ */
+.bubble-stamp {
+  position: absolute; right: -12px; top: -16px;
+  font-size: 24px; transform: rotate(12deg);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .45));
+}
+
+/* 相手から届いたスタンプ(ハンコ風) */
+.stamp-float {
+  position: absolute; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transform: rotate(var(--tilt, 0deg));
+  animation: bubble-pop .4s cubic-bezier(.18, 1.6, .4, 1);
+}
+.stamp-emoji {
+  font-size: 40px; width: 64px; height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, .07);
+  border: 2px dashed rgba(255, 255, 255, .3); border-radius: 50%;
+}
+.stamp-name { font-size: 10px; color: var(--muted); font-weight: 700; }
+
+/* スタンプ選択 */
+.stamp-picker {
+  position: absolute; left: 50%; bottom: 130px; transform: translateX(-50%);
+  display: flex; gap: 4px; align-items: center;
+  background: var(--card2); border: 1px solid #3a4368; border-radius: 999px;
+  padding: 6px 8px; z-index: 3;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+}
+.stamp-btn { background: none; border: none; font-size: 30px; cursor: pointer; padding: 2px 8px; transition: transform .08s; }
+.stamp-btn:active { transform: scale(1.25); }
+
+/* 終了パネル */
+.finish-panel {
+  position: absolute; left: 16px; right: 16px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  background: var(--card); border: 1px solid #3a4368; border-radius: var(--radius);
+  padding: 14px; display: flex; flex-direction: column; gap: 10px; z-index: 3;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .55);
+}
+.finish-panel .row .btn { flex: 1; }
 
 /* toast */
 .toast {
