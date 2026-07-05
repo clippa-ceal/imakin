@@ -6,7 +6,7 @@ import {
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, query, where, onSnapshot, runTransaction,
-  serverTimestamp, deleteField, getDocs, documentId, orderBy, limit,
+  serverTimestamp, deleteField, getDocs, documentId,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getMessaging, getToken, onMessage, isSupported as messagingSupported,
@@ -382,8 +382,7 @@ function main() {
     try {
       const snap = await getDocs(query(
         collection(db, "users", me.uid, "sessions"),
-        orderBy(documentId(), "desc"),
-        limit(60),
+        where(documentId(), ">=", localDayStr(Date.now() - 59 * 86400000)),
       ));
       list.innerHTML = "";
       if (snap.empty) {
@@ -400,7 +399,8 @@ function main() {
       $("history-stats").textContent =
         `今月 ${monthCount}日` + (streak >= 2 ? ` ・ ${streak}日連続🔥` : "");
       const week = ["日", "月", "火", "水", "木", "金", "土"];
-      snap.forEach((docSnap) => {
+      const docs = snap.docs.slice().sort((a, b) => (a.id < b.id ? 1 : -1)); // 新しい日付順
+      docs.forEach((docSnap) => {
         const [y, mo, da] = docSnap.id.split("-").map(Number);
         const date = new Date(y, mo - 1, da);
         const s = docSnap.data();
@@ -428,7 +428,7 @@ function main() {
       });
     } catch (e) {
       console.error(e);
-      list.innerHTML = `<li class="muted">読み込みに失敗しました</li>`;
+      list.innerHTML = `<li class="muted">読み込みに失敗しました(${e.code || e.message || "不明なエラー"})</li>`;
     }
   }
 
