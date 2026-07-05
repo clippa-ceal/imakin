@@ -149,19 +149,19 @@
       </div>
 
       <div class="card">
-        <div class="row space-between">
-          <p class="field-label">通知を受け取る(全体)</p>
-          <label class="switch"><input type="checkbox" id="master-toggle" checked><span class="slider"></span></label>
-        </div>
+        <p class="field-label">いまの状態</p>
+        <p id="notify-status">…</p>
+        <p id="notify-reason" class="muted small" hidden></p>
+        <button id="btn-comeback" class="btn primary" hidden>💪 電撃復帰する</button>
         <div class="divider"></div>
-        <p class="field-label">しばらくオフにする</p>
-        <div class="row">
-          <button class="btn ghost snooze" data-hours="1">1時間</button>
+        <p class="field-label">引退タイマー(しばらく通知を受け取らない)</p>
+        <div class="chip-row">
           <button class="btn ghost snooze" data-hours="3">3時間</button>
-          <button class="btn ghost snooze" data-hours="today">今日はオフ</button>
+          <button class="btn ghost snooze" data-hours="12">半日</button>
+          <button class="btn ghost snooze" data-hours="24">1日</button>
+          <button class="btn ghost snooze" data-hours="forever">無期限にお休み</button>
         </div>
-        <p id="snooze-status" class="muted small" hidden></p>
-        <button id="btn-unsnooze" class="btn ghost" hidden>オフを解除する</button>
+        <p class="muted small">引退してもワンタップで電撃復帰できます</p>
       </div>
 
       <div class="card">

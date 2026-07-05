@@ -834,46 +834,79 @@ function main() {
     const sref = doc(db, "users", me.uid, "private", "settings");
     unsubscribers.push(onSnapshot(sref, (snap) => {
       mySettings = snap.data() || {};
-      $("master-toggle").checked = mySettings.enabled !== false;
       $("time-start").value = mySettings.timeStart || "00:00";
       $("time-end").value = mySettings.timeEnd || "23:59";
-      renderSnooze();
+      renderNotifyStatus();
       renderChicks(); // ひよこの色設定を反映
     }));
   }
 
   const settingsRef = () => doc(db, "users", me.uid, "private", "settings");
 
-  $("master-toggle").addEventListener("change", (e) => updateDoc(settingsRef(), { enabled: e.target.checked }));
   $("time-start").addEventListener("change", (e) => updateDoc(settingsRef(), { timeStart: e.target.value }));
   $("time-end").addEventListener("change", (e) => updateDoc(settingsRef(), { timeEnd: e.target.value }));
 
+  // 引退タイマー(3時間/半日/1日/無期限)
   document.querySelectorAll(".snooze").forEach((btn) => {
     btn.addEventListener("click", () => {
-      let until;
-      if (btn.dataset.hours === "today") {
-        const d = new Date();
-        d.setHours(23, 59, 59, 999);
-        until = d.getTime();
+      if (btn.dataset.hours === "forever") {
+        updateDoc(settingsRef(), { enabled: false, snoozeUntil: 0, snoozeSetAt: Date.now() });
+        toast("無期限で引退しました。復帰を待ってます");
       } else {
-        until = Date.now() + Number(btn.dataset.hours) * 3600 * 1000;
+        updateDoc(settingsRef(), {
+          enabled: true,
+          snoozeUntil: Date.now() + Number(btn.dataset.hours) * 3600 * 1000,
+          snoozeSetAt: Date.now(),
+        });
+        toast(`${btn.textContent}の引退タイマーを設定しました`);
       }
-      updateDoc(settingsRef(), { snoozeUntil: until });
     });
   });
-  $("btn-unsnooze").addEventListener("click", () => updateDoc(settingsRef(), { snoozeUntil: 0 }));
+  $("btn-comeback").addEventListener("click", () => {
+    updateDoc(settingsRef(), { enabled: true, snoozeUntil: 0 });
+    toast("💪 電撃復帰!");
+  });
 
-  function renderSnooze() {
-    const until = mySettings.snoozeUntil || 0;
-    const active = until > Date.now();
-    $("snooze-status").hidden = !active;
-    $("btn-unsnooze").hidden = !active;
-    if (active) {
-      const d = new Date(until);
-      $("snooze-status").textContent =
-        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} まで通知オフ中`;
-    }
+  // サーバー(sendWorkout)と同じ時間帯判定(夜またぎ対応)
+  function nowInWindow(start, end) {
+    const toMin = (s) => { const [h, m] = String(s).split(":").map(Number); return h * 60 + m; };
+    const now = new Date();
+    const cur = now.getHours() * 60 + now.getMinutes();
+    const s = toMin(start || "00:00");
+    const e = toMin(end || "23:59");
+    return s <= e ? (cur >= s && cur <= e) : (cur >= s || cur <= e);
   }
+
+  function untilText(ts) {
+    const prefix = localDayStr(ts) === localDayStr(Date.now()) ? "今日" : "明日";
+    return `${prefix} ${fmtTime(ts)}`;
+  }
+
+  // いまの受信状態と、オフならその理由を表示する
+  function renderNotifyStatus() {
+    if (!mySettings) return;
+    const until = mySettings.snoozeUntil || 0;
+    const setAt = mySettings.snoozeSetAt || 0;
+    let status, reason = "";
+    if (mySettings.enabled === false) {
+      status = "🏝 無期限で引退中";
+      reason = (setAt ? `${fmtTime(setAt)} に引退しました。` : "") + "下のボタンでいつでも復帰できます";
+    } else if (until > Date.now()) {
+      status = `😴 引退中(${untilText(until)} まで)`;
+      reason = (setAt ? `${fmtTime(setAt)} に設定した` : "") + "引退タイマーが動いています";
+    } else if (!nowInWindow(mySettings.timeStart, mySettings.timeEnd)) {
+      status = "🌙 いまは受け取らない時間帯";
+      reason = `受け取る時間帯が ${mySettings.timeStart || "00:00"}〜${mySettings.timeEnd || "23:59"} に設定されています`;
+    } else {
+      status = "✅ 通知を受け取り中";
+    }
+    $("notify-status").textContent = status;
+    $("notify-reason").textContent = reason;
+    $("notify-reason").hidden = !reason;
+    $("btn-comeback").hidden = !(mySettings.enabled === false || until > Date.now());
+  }
+  // タイマー切れや時間帯の変わり目を表示に反映(1分ごと)
+  setInterval(() => { if (me && mySettings) renderNotifyStatus(); }, 60000);
 
   // ---------- プッシュ通知 ----------
   async function setupMessaging() {
