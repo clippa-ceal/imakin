@@ -213,7 +213,7 @@ function main() {
       toast("申請を送りました");
     } catch (e) {
       console.error(e);
-      showFriendError("申請に失敗しました");
+      showFriendError("申請に失敗しました: " + (e.code || e.message || ""));
     }
   });
   function showFriendError(msg) {
