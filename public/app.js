@@ -242,8 +242,10 @@ function main() {
 
   // ---------- ひよこ(直近14日の筋トレ記録) ----------
   const CHICK_COLOR_CYCLE = ["", "c-pink", "c-green", "c-blue", "c-purple", "c-orange"];
+  const CHICK_CACHE_KEY = "imakinChickCache";
   let chickCounts = {};      // uid -> 直近14日の筋トレ日数
   let chickFriendUids = [];  // 友達のuid一覧(watchFriendsが更新)
+  try { chickCounts = JSON.parse(localStorage.getItem(CHICK_CACHE_KEY)) || {}; } catch { /* 破損時は無視 */ }
   let myDays = new Set();    // 自分の筋トレ日(直近14日、ストリーク計算用)
 
   const localDayStr = (t) => {
@@ -299,6 +301,7 @@ function main() {
 
   async function refreshChicks() {
     if (!me) return;
+    renderChicks(); // まず前回の値で即描画し、取得後に差し替える
     const cutoff = chickCutoffDay();
     const activeNow = [];
     await Promise.all([me.uid, ...chickFriendUids].map(async (uid) => {
@@ -325,6 +328,7 @@ function main() {
     $("active-list").textContent = activeNow
       .map((a) => `${friendProfiles[a.uid]?.name || "友達"}(〜${a.untilTime})`)
       .join(" ・ ");
+    localStorage.setItem(CHICK_CACHE_KEY, JSON.stringify(chickCounts));
     renderChicks();
     updateGreeting();
   }
@@ -340,6 +344,14 @@ function main() {
     wp.textContent = goal > 0
       ? (wc >= goal ? `今週 ${wc}/${goal}日 — 目標達成🎉` : `今週 ${wc}/${goal}日`)
       : `今週 ${wc}日`;
+    // 目標を達成した週は、その週に一度だけお祝いトースト
+    if (goal > 0 && wc >= goal) {
+      const weekKey = localDayStr(Date.now() - ((new Date().getDay() + 6) % 7) * 86400000);
+      if (localStorage.getItem("imakinGoalCelebrated") !== weekKey) {
+        localStorage.setItem("imakinGoalCelebrated", weekKey);
+        toast("🎉 今週の目標を達成しました!ナイス!");
+      }
+    }
     list.innerHTML = "";
     const rows = [
       { uid: me.uid, name: "あなた", self: true },
@@ -421,86 +433,106 @@ function main() {
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   };
 
+  const HIST_CACHE_KEY = "imakinHistCache";
+
   async function loadHistory() {
     if (!me) return;
-    const list = $("history-list");
-    list.innerHTML = `<li class="muted">読み込み中…</li>`;
+    // まず前回の内容を即表示して、裏で最新に差し替える
+    let hasCache = false;
+    try {
+      const cached = JSON.parse(localStorage.getItem(HIST_CACHE_KEY));
+      if (Array.isArray(cached)) { renderHistory(cached); hasCache = true; }
+    } catch { /* キャッシュ破損時は無視 */ }
+    if (!hasCache) $("history-list").innerHTML = `<li class="muted">読み込み中…</li>`;
     try {
       const snap = await getDocs(query(
         collection(db, "users", me.uid, "sessions"),
         where(documentId(), ">=", localDayStr(Date.now() - 59 * 86400000)),
       ));
-      list.innerHTML = "";
-      if (snap.empty) {
-        $("history-stats").hidden = true;
-        list.innerHTML = `<li class="muted">まだ記録がありません。筋トレ開始を送るとここに残ります🐤</li>`;
-        return;
-      }
-      // 統計: 今月の日数と連続日数
-      const ids = new Set(snap.docs.map((d) => d.id));
-      const monthPrefix = localDayStr(Date.now()).slice(0, 7);
-      const monthCount = snap.docs.filter((d) => d.id.startsWith(monthPrefix)).length;
-      const streak = streakFrom(ids, 60);
-      // 直近60日のベスト連続記録
-      let best = 0, run = 0, prev = null;
-      [...ids].sort().forEach((id) => {
-        const [y, m, d] = id.split("-").map(Number);
-        const t = new Date(y, m - 1, d).getTime();
-        run = (prev !== null && t - prev === 86400000) ? run + 1 : 1;
-        best = Math.max(best, run);
-        prev = t;
+      const entries = snap.docs.map((d) => {
+        const s = d.data();
+        return {
+          id: d.id,
+          starts: Array.isArray(s.starts) && s.starts.length
+            ? s.starts
+            : [{ at: s.lastStartAt, untilTime: s.untilTime || "", message: "" }],
+          mood: s.mood || "",
+        };
       });
-      let streakText = "";
-      if (streak >= 2 && streak >= best) streakText = ` ・ ${streak}日連続🔥 自己ベスト🏅`;
-      else if (streak >= 2) streakText = ` ・ ${streak}日連続🔥(ベスト ${best}日)`;
-      else if (best >= 2) streakText = ` ・ ベスト ${best}日連続`;
-      $("history-stats").hidden = false;
-      $("history-stats").textContent = `今月 ${monthCount}日` + streakText;
-      // 気分の集計(振り返りした日ぶん)
-      const moodCount = { fire: 0, good: 0, meh: 0 };
-      snap.docs.forEach((d) => {
-        const m = d.data().mood;
-        if (moodCount[m] !== undefined) moodCount[m]++;
-      });
-      const totalMood = moodCount.fire + moodCount.good + moodCount.meh;
-      $("mood-stats").hidden = totalMood === 0;
-      if (totalMood > 0) {
-        $("mood-stats").textContent = `振り返り: 🔥${moodCount.fire} 😊${moodCount.good} 🫠${moodCount.meh}`;
-      }
-      renderWeeksView(ids);
-      const week = ["日", "月", "火", "水", "木", "金", "土"];
-      const docs = snap.docs.slice().sort((a, b) => (a.id < b.id ? 1 : -1)); // 新しい日付順
-      docs.forEach((docSnap) => {
-        const [y, mo, da] = docSnap.id.split("-").map(Number);
-        const date = new Date(y, mo - 1, da);
-        const s = docSnap.data();
-        // 新形式はstarts配列、古い記録はlastStartAt/untilTimeから1件だけ復元
-        const starts = Array.isArray(s.starts) && s.starts.length
-          ? s.starts
-          : [{ at: s.lastStartAt, untilTime: s.untilTime || "", message: "" }];
-        const li = document.createElement("li");
-        li.className = "history-day" + (docSnap.id === localDayStr(Date.now()) ? " today" : "");
-        const head = document.createElement("div");
-        head.className = "history-date";
-        head.textContent = `${mo}月${da}日(${week[date.getDay()]}) `
-          + "🐤".repeat(Math.min(starts.length, 5))
-          + (s.mood ? ` ${MOOD_EMOJI[s.mood] || ""}` : "");
-        const ul = document.createElement("ul");
-        ul.className = "history-starts";
-        for (const st of starts) {
-          const row = document.createElement("li");
-          row.textContent =
-            (st.at ? fmtTime(st.at) : "--:--") +
-            (st.untilTime ? ` → 〜${st.untilTime}` : "") +
-            (st.message ? ` 「${st.message}」` : "");
-          ul.appendChild(row);
-        }
-        li.append(head, ul);
-        list.appendChild(li);
-      });
+      localStorage.setItem(HIST_CACHE_KEY, JSON.stringify(entries));
+      renderHistory(entries);
     } catch (e) {
       console.error(e);
-      list.innerHTML = `<li class="muted">読み込みに失敗しました(${e.code || e.message || "不明なエラー"})</li>`;
+      if (!hasCache) {
+        $("history-list").innerHTML =
+          `<li class="muted">読み込みに失敗しました(${e.code || e.message || "不明なエラー"})</li>`;
+      }
+    }
+  }
+
+  function renderHistory(entries) {
+    const list = $("history-list");
+    list.innerHTML = "";
+    if (entries.length === 0) {
+      $("history-stats").hidden = true;
+      $("mood-stats").hidden = true;
+      renderWeeksView(new Set());
+      list.innerHTML = `<li class="muted">まだ記録がありません。ホームから「筋トレ開始」を送ると、その日のひよこ🐤がここに並びます</li>`;
+      return;
+    }
+    // 統計: 今月の日数と連続日数
+    const ids = new Set(entries.map((x) => x.id));
+    const monthPrefix = localDayStr(Date.now()).slice(0, 7);
+    const monthCount = entries.filter((x) => x.id.startsWith(monthPrefix)).length;
+    const streak = streakFrom(ids, 60);
+    // 直近60日のベスト連続記録
+    let best = 0, run = 0, prev = null;
+    [...ids].sort().forEach((id) => {
+      const [y, m, d] = id.split("-").map(Number);
+      const t = new Date(y, m - 1, d).getTime();
+      run = (prev !== null && t - prev === 86400000) ? run + 1 : 1;
+      best = Math.max(best, run);
+      prev = t;
+    });
+    let streakText = "";
+    if (streak >= 2 && streak >= best) streakText = ` ・ ${streak}日連続🔥 自己ベスト🏅`;
+    else if (streak >= 2) streakText = ` ・ ${streak}日連続🔥(ベスト ${best}日)`;
+    else if (best >= 2) streakText = ` ・ ベスト ${best}日連続`;
+    $("history-stats").hidden = false;
+    $("history-stats").textContent = `今月 ${monthCount}日` + streakText;
+    // 気分の集計(振り返りした日ぶん)
+    const moodCount = { fire: 0, good: 0, meh: 0 };
+    entries.forEach((x) => { if (moodCount[x.mood] !== undefined) moodCount[x.mood]++; });
+    const totalMood = moodCount.fire + moodCount.good + moodCount.meh;
+    $("mood-stats").hidden = totalMood === 0;
+    if (totalMood > 0) {
+      $("mood-stats").textContent = `振り返り: 🔥${moodCount.fire} 😊${moodCount.good} 🫠${moodCount.meh}`;
+    }
+    renderWeeksView(ids);
+    const week = ["日", "月", "火", "水", "木", "金", "土"];
+    const sorted = entries.slice().sort((a, b) => (a.id < b.id ? 1 : -1)); // 新しい日付順
+    for (const entry of sorted) {
+      const [y, mo, da] = entry.id.split("-").map(Number);
+      const date = new Date(y, mo - 1, da);
+      const li = document.createElement("li");
+      li.className = "history-day" + (entry.id === localDayStr(Date.now()) ? " today" : "");
+      const head = document.createElement("div");
+      head.className = "history-date";
+      head.textContent = `${mo}月${da}日(${week[date.getDay()]}) `
+        + "🐤".repeat(Math.min(entry.starts.length, 5))
+        + (entry.mood ? ` ${MOOD_EMOJI[entry.mood] || ""}` : "");
+      const ul = document.createElement("ul");
+      ul.className = "history-starts";
+      for (const st of entry.starts) {
+        const row = document.createElement("li");
+        row.textContent =
+          (st.at ? fmtTime(st.at) : "--:--") +
+          (st.untilTime ? ` → 〜${st.untilTime}` : "") +
+          (st.message ? ` 「${st.message}」` : "");
+        ul.appendChild(row);
+      }
+      li.append(head, ul);
+      list.appendChild(li);
     }
   }
 
