@@ -276,9 +276,15 @@ function main() {
   function updateGreeting() {
     if (!myProfile) return;
     const streak = streakFrom(myDays, 14);
-    $("home-greeting").textContent = streak >= 2
-      ? `${myProfile.name} さん、${streak}日連続🔥 今日もやりますか`
-      : `${myProfile.name} さん、今日もやりますか`;
+    const goal = mySettings?.weeklyGoal || 0;
+    const parts = [];
+    if (streak >= 2) parts.push(`${streak}日連続🔥`);
+    if (goal > 0) {
+      const left = goal - thisWeekCount();
+      parts.push(left > 0 ? `目標まであと${left}日` : "今週の目標達成🎉");
+    }
+    $("home-greeting").textContent =
+      `${myProfile.name} さん、` + (parts.length ? parts.join("・") + " " : "") + "今日もやりますか";
   }
 
   // 「HH:MM」の終了予定を、開始時刻を基準にタイムスタンプへ(夜またぎ対応)
@@ -364,6 +370,12 @@ function main() {
           chicks.appendChild(c);
         }
       }
+      // 週目標を達成した週は王冠
+      if (r.self && goal > 0 && wc >= goal) {
+        const crown = document.createElement("span");
+        crown.textContent = "👑";
+        chicks.appendChild(crown);
+      }
       const count = document.createElement("span");
       count.className = "chick-count";
       count.textContent = `${n}日`;
@@ -429,9 +441,32 @@ function main() {
       const monthPrefix = localDayStr(Date.now()).slice(0, 7);
       const monthCount = snap.docs.filter((d) => d.id.startsWith(monthPrefix)).length;
       const streak = streakFrom(ids, 60);
+      // 直近60日のベスト連続記録
+      let best = 0, run = 0, prev = null;
+      [...ids].sort().forEach((id) => {
+        const [y, m, d] = id.split("-").map(Number);
+        const t = new Date(y, m - 1, d).getTime();
+        run = (prev !== null && t - prev === 86400000) ? run + 1 : 1;
+        best = Math.max(best, run);
+        prev = t;
+      });
+      let streakText = "";
+      if (streak >= 2 && streak >= best) streakText = ` ・ ${streak}日連続🔥 自己ベスト🏅`;
+      else if (streak >= 2) streakText = ` ・ ${streak}日連続🔥(ベスト ${best}日)`;
+      else if (best >= 2) streakText = ` ・ ベスト ${best}日連続`;
       $("history-stats").hidden = false;
-      $("history-stats").textContent =
-        `今月 ${monthCount}日` + (streak >= 2 ? ` ・ ${streak}日連続🔥` : "");
+      $("history-stats").textContent = `今月 ${monthCount}日` + streakText;
+      // 気分の集計(振り返りした日ぶん)
+      const moodCount = { fire: 0, good: 0, meh: 0 };
+      snap.docs.forEach((d) => {
+        const m = d.data().mood;
+        if (moodCount[m] !== undefined) moodCount[m]++;
+      });
+      const totalMood = moodCount.fire + moodCount.good + moodCount.meh;
+      $("mood-stats").hidden = totalMood === 0;
+      if (totalMood > 0) {
+        $("mood-stats").textContent = `振り返り: 🔥${moodCount.fire} 😊${moodCount.good} 🫠${moodCount.meh}`;
+      }
       renderWeeksView(ids);
       const week = ["日", "月", "火", "水", "木", "金", "土"];
       const docs = snap.docs.slice().sort((a, b) => (a.id < b.id ? 1 : -1)); // 新しい日付順
