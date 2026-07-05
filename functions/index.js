@@ -1,6 +1,6 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 
 initializeApp();
@@ -56,11 +56,15 @@ exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
   if (!senderSnap.exists) throw new HttpsError("failed-precondition", "ユーザー情報がありません");
   const senderName = senderSnap.data().name || "友達";
 
-  // セッション記録: 筋トレした「日」だけ残す(内容は今はミニマム、将来拡張する)
+  // セッション記録: 日ごとのdocに、その日の各セッション(開始時刻・何時まで・一言)を追記
   if (kind === "start") {
     const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date());
     await db.doc(`users/${uid}/sessions/${day}`).set(
-      { lastStartAt: Date.now(), untilTime },
+      {
+        lastStartAt: Date.now(),
+        untilTime,
+        starts: FieldValue.arrayUnion({ at: Date.now(), untilTime, message }),
+      },
       { merge: true },
     );
   }
@@ -77,6 +81,10 @@ exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
       throw new HttpsError("permission-denied", "友達にしか返信できません");
     }
     recipients = [replyTo];
+  } else if (kind === "done") {
+    // 終了報告は、セッション中に反応をくれた相手(クライアントが指定)だけに送る
+    const toList = Array.isArray(req.data?.to) ? req.data.to.slice(0, 100).map(String) : [];
+    recipients = [...new Set(toList)].filter((r) => friendUids.includes(r));
   } else {
     recipients = friendUids;
   }

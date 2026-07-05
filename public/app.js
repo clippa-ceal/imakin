@@ -6,7 +6,7 @@ import {
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, query, where, onSnapshot, runTransaction,
-  serverTimestamp, deleteField, getDocs, documentId,
+  serverTimestamp, deleteField, getDocs, documentId, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getMessaging, getToken, onMessage, isSupported as messagingSupported,
@@ -129,6 +129,7 @@ function main() {
   function switchTab(tab) {
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
+    if (tab === "history") loadHistory();
   }
 
   // ---------- ホーム:送信 ----------
@@ -263,6 +264,60 @@ function main() {
     updateDoc(doc(db, "users", me.uid, "private", "settings"), {
       [`chickColors.${uid}`]: next || deleteField(),
     }).catch(console.error);
+  }
+
+  // ---------- 記録(セッション履歴) ----------
+  const fmtTime = (ts) => {
+    const d = new Date(ts);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
+  async function loadHistory() {
+    if (!me) return;
+    const list = $("history-list");
+    list.innerHTML = `<li class="muted">読み込み中…</li>`;
+    try {
+      const snap = await getDocs(query(
+        collection(db, "users", me.uid, "sessions"),
+        orderBy(documentId(), "desc"),
+        limit(60),
+      ));
+      list.innerHTML = "";
+      if (snap.empty) {
+        list.innerHTML = `<li class="muted">まだ記録がありません。筋トレ開始を送るとここに残ります🐤</li>`;
+        return;
+      }
+      const week = ["日", "月", "火", "水", "木", "金", "土"];
+      snap.forEach((docSnap) => {
+        const [y, mo, da] = docSnap.id.split("-").map(Number);
+        const date = new Date(y, mo - 1, da);
+        const s = docSnap.data();
+        // 新形式はstarts配列、古い記録はlastStartAt/untilTimeから1件だけ復元
+        const starts = Array.isArray(s.starts) && s.starts.length
+          ? s.starts
+          : [{ at: s.lastStartAt, untilTime: s.untilTime || "", message: "" }];
+        const li = document.createElement("li");
+        li.className = "history-day";
+        const head = document.createElement("div");
+        head.className = "history-date";
+        head.textContent = `${mo}月${da}日(${week[date.getDay()]}) ` + "🐤".repeat(Math.min(starts.length, 5));
+        const ul = document.createElement("ul");
+        ul.className = "history-starts";
+        for (const st of starts) {
+          const row = document.createElement("li");
+          row.textContent =
+            (st.at ? fmtTime(st.at) : "--:--") +
+            (st.untilTime ? ` → 〜${st.untilTime}` : "") +
+            (st.message ? ` 「${st.message}」` : "");
+          ul.appendChild(row);
+        }
+        li.append(head, ul);
+        list.appendChild(li);
+      });
+    } catch (e) {
+      console.error(e);
+      list.innerHTML = `<li class="muted">読み込みに失敗しました</li>`;
+    }
   }
 
   // ---------- 筋トレ中の画面(時計 + フキダシ付箋) ----------
@@ -465,7 +520,16 @@ function main() {
   $("workout-exit").addEventListener("click", () => exitWorkout());
 
   // ---------- 筋トレ終了(「終わったよ」メッセージ) ----------
+  // 終了報告は、セッション中に反応(フキダシ・スタンプ)をくれた相手にだけ送る
+  function workoutReactedUids() {
+    return [...new Set((workout?.bubbles || []).map((b) => b.uid).filter(Boolean))];
+  }
+
   $("btn-workout-done").addEventListener("click", () => {
+    const reacted = workoutReactedUids();
+    if (reacted.length === 0) { exitWorkout(); return; } // 反応が無ければそのまま終了
+    $("finish-label").textContent =
+      `お疲れさま🎉 反応をくれた${reacted.length}人に「終わったよ」を送る?(20文字まで)`;
     $("finish-panel").hidden = false;
   });
   $("btn-finish-skip").addEventListener("click", () => {
@@ -478,7 +542,7 @@ function main() {
     btn.disabled = true;
     try {
       const send = httpsCallable(functions, "sendWorkout");
-      await send({ kind: "done", message });
+      await send({ kind: "done", message, to: workoutReactedUids() });
       toast("筋トレ終了を知らせました🎉");
       $("finish-panel").hidden = true;
       exitWorkout(true);

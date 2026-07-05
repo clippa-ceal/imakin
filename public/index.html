@@ -71,6 +71,14 @@
       </div>
     </div>
 
+    <!-- 記録 -->
+    <div id="tab-history" class="tab-page" hidden>
+      <header class="page-head"><h2>筋トレの記録</h2></header>
+      <div class="card">
+        <ul id="history-list" class="plain-list"></ul>
+      </div>
+    </div>
+
     <!-- 友達 -->
     <div id="tab-friends" class="tab-page" hidden>
       <header class="page-head"><h2>友達</h2></header>
@@ -143,6 +151,7 @@
     <!-- 下部ナビ -->
     <nav class="bottom-nav">
       <button class="nav-btn active" data-tab="home"><span class="nav-icon">💪</span>ホーム</button>
+      <button class="nav-btn" data-tab="history"><span class="nav-icon">🐤</span>記録</button>
       <button class="nav-btn" data-tab="friends"><span class="nav-icon">👥</span>友達<span id="req-badge" class="badge" hidden></span></button>
       <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span>設定</button>
     </nav>
@@ -163,7 +172,7 @@
     <p id="workout-hint" class="workout-hint">友達からの返信がフキダシでここに貼られます。フキダシはタップでスタンプを押せます</p>
     <div id="stamp-picker" class="stamp-picker" hidden></div>
     <div id="finish-panel" class="finish-panel" hidden>
-      <p class="field-label">お疲れさま🎉 「終わったよ」を友達に送る?(20文字まで)</p>
+      <p id="finish-label" class="field-label">お疲れさま🎉 「終わったよ」を送る?(20文字まで)</p>
       <input type="text" id="finish-message" maxlength="20" placeholder="やり切った!">
       <div class="row">
         <button id="btn-finish-send" class="btn primary">🎉 送って終了</button>
