@@ -205,6 +205,12 @@ function main() {
       if ((await getDoc(doc(db, "friends", fid))).exists()) {
         showFriendError("すでに友達です"); return;
       }
+      if ((await getDoc(doc(db, "requests", `${me.uid}_${toUid}`))).exists()) {
+        showFriendError("すでに申請済みです(相手の承認待ち)"); return;
+      }
+      if ((await getDoc(doc(db, "requests", `${toUid}_${me.uid}`))).exists()) {
+        showFriendError("相手からあなたに申請が届いています。下の「届いている申請」から承認してください"); return;
+      }
       await setDoc(doc(db, "requests", `${me.uid}_${toUid}`), {
         from: me.uid, to: toUid, fromName: myProfile.name, fromPhoto: myProfile.photo,
         createdAt: Date.now(),

@@ -29,7 +29,10 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.from == request.auth.uid
         && reqId == request.resource.data.from + '_' + request.resource.data.to;
-      allow read, delete: if request.auth != null
+      // 単独取得はdocIdで判定する(申請済みチェックは未存在のdocを読むため、
+      // resource.data を参照する条件では常に拒否される)
+      allow get: if request.auth != null && request.auth.uid in reqId.split('_');
+      allow list, delete: if request.auth != null
         && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
     }
 
