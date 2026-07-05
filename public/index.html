@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1220">
+<title>イマキン — 今から筋トレ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Firebase未設定のとき -->
+  <section id="screen-setup" class="screen" hidden>
+    <div class="center-box">
+      <div class="logo">💪</div>
+      <h1>イマキン</h1>
+      <p class="muted">Firebaseの設定がまだ済んでいません。<br>
+      リポジトリの <code>README.md</code> の手順に従って<br>
+      <code>public/firebase-config.js</code> を設定してください。</p>
+    </div>
+  </section>
+
+  <!-- ログイン画面 -->
+  <section id="screen-auth" class="screen" hidden>
+    <div class="center-box">
+      <div class="logo">💪</div>
+      <h1>イマキン</h1>
+      <p class="muted">「今から筋トレするよ」を友達に飛ばそう</p>
+      <button id="btn-login" class="btn primary big">Googleでログイン</button>
+      <p id="auth-error" class="error" hidden></p>
+    </div>
+  </section>
+
+  <!-- メイン画面 -->
+  <section id="screen-main" class="screen" hidden>
+
+    <!-- ホーム(送信) -->
+    <div id="tab-home" class="tab-page">
+      <header class="page-head">
+        <h2>今から筋トレ 💪</h2>
+        <p id="home-greeting" class="muted"></p>
+      </header>
+
+      <div id="reply-chip" class="reply-chip" hidden>
+        <span id="reply-chip-text"></span>
+        <button id="reply-chip-clear" class="chip-x" aria-label="返信をやめる">×</button>
+      </div>
+
+      <div class="card">
+        <label class="field">
+          <span class="field-label">何時まで?</span>
+          <input type="time" id="until-time">
+        </label>
+        <label class="field">
+          <span class="field-label">一言メッセージ(20文字まで)</span>
+          <input type="text" id="message" maxlength="20" placeholder="胸の日。追い込むぞ">
+          <span class="counter"><span id="msg-count">0</span>/20</span>
+        </label>
+        <button id="btn-send" class="btn primary big">🔥 筋トレ開始を知らせる</button>
+        <p class="muted small">※ 相手に届いたかどうかは分かりません(仕様です)</p>
+      </div>
+    </div>
+
+    <!-- 友達 -->
+    <div id="tab-friends" class="tab-page" hidden>
+      <header class="page-head"><h2>友達</h2></header>
+
+      <div class="card">
+        <p class="field-label">あなたの友達コード</p>
+        <button id="my-code" class="friend-code" title="タップでコピー">------</button>
+        <p class="muted small">友達にこのコードを教えてもらい、下に入力すると申請が送れます</p>
+        <div class="row">
+          <input type="text" id="add-code" placeholder="例: AB3K9Z" maxlength="6" autocapitalize="characters">
+          <button id="btn-add-friend" class="btn primary">申請</button>
+        </div>
+        <p id="friend-error" class="error" hidden></p>
+      </div>
+
+      <div class="card" id="requests-card" hidden>
+        <p class="field-label">届いている申請</p>
+        <ul id="request-list" class="plain-list"></ul>
+      </div>
+
+      <div class="card">
+        <p class="field-label">友達リスト</p>
+        <p class="muted small">スイッチをオフにすると、その人からの通知だけを受け取らなくなります(相手には分かりません)</p>
+        <ul id="friend-list" class="plain-list"><li class="muted">まだ友達がいません</li></ul>
+      </div>
+    </div>
+
+    <!-- 設定 -->
+    <div id="tab-settings" class="tab-page" hidden>
+      <header class="page-head"><h2>通知の設定</h2></header>
+
+      <div class="card">
+        <p class="field-label">この端末で通知を受け取る</p>
+        <p id="perm-status" class="muted small"></p>
+        <button id="btn-enable-push" class="btn primary">通知を許可する</button>
+        <p id="ios-hint" class="muted small" hidden>iPhoneの場合:Safariの共有メニューから「ホーム画面に追加」した後、そのアイコンから開くと通知を許可できます。</p>
+      </div>
+
+      <div class="card">
+        <div class="row space-between">
+          <p class="field-label">通知を受け取る(全体)</p>
+          <label class="switch"><input type="checkbox" id="master-toggle" checked><span class="slider"></span></label>
+        </div>
+        <div class="divider"></div>
+        <p class="field-label">しばらくオフにする</p>
+        <div class="row">
+          <button class="btn ghost snooze" data-hours="1">1時間</button>
+          <button class="btn ghost snooze" data-hours="3">3時間</button>
+          <button class="btn ghost snooze" data-hours="today">今日はオフ</button>
+        </div>
+        <p id="snooze-status" class="muted small" hidden></p>
+        <button id="btn-unsnooze" class="btn ghost" hidden>オフを解除する</button>
+      </div>
+
+      <div class="card">
+        <p class="field-label">通知を受け取る時間帯</p>
+        <div class="row">
+          <input type="time" id="time-start" value="00:00">
+          <span class="muted">〜</span>
+          <input type="time" id="time-end" value="23:59">
+        </div>
+        <p class="muted small">例: 07:00〜22:00 にすると夜中は通知が来ません。22:00〜06:00 のような夜またぎもOK。</p>
+      </div>
+
+      <div class="card">
+        <button id="btn-logout" class="btn ghost danger">ログアウト</button>
+      </div>
+    </div>
+
+    <!-- 下部ナビ -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-tab="home"><span class="nav-icon">💪</span>ホーム</button>
+      <button class="nav-btn" data-tab="friends"><span class="nav-icon">👥</span>友達<span id="req-badge" class="badge" hidden></span></button>
+      <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span>設定</button>
+    </nav>
+  </section>
+
+  <!-- 受信バナー(アプリを開いているときに通知が来た場合) -->
+  <div id="banner" class="banner" hidden>
+    <div class="banner-body">
+      <p id="banner-title"></p>
+      <p id="banner-msg" class="muted"></p>
+    </div>
+    <button id="banner-reply" class="btn primary small-btn">返信</button>
+    <button id="banner-close" class="chip-x" aria-label="閉じる">×</button>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
