@@ -11,4 +11,4 @@ export const firebaseConfig = {
 
 // Firebaseコンソール → プロジェクトの設定 → Cloud Messaging →
 // 「ウェブプッシュ証明書」の鍵ペアを生成してコピー
-export const vapidKey = "PASTE_VAPID_KEY";
+export const vapidKey = "BDUv8SPUIrZWzEp3U46teyA7rwkDjqmohC_I18_VHH-UPHyPJUf1vGlnQ-K7Ge12Nd0sHTRzuHDLLuVzu5s5_Xc";
