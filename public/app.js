@@ -173,13 +173,25 @@ function main() {
     $("msg-count").textContent = String($("message").value.length);
   });
 
-  // 時刻プリセット(今から+N分)
-  document.querySelectorAll("#time-presets .preset-chip").forEach((b) => {
+  // 時刻プリセット:現在の設定に+N分ずつ積み上げる(+20→+5で25分後)
+  const setUntilFromTs = (ts) => {
+    const d = new Date(ts);
+    untilInput.value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+  const hhmmToTodayTs = (hhmm) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0); // 当日扱い(表示はHH:MMのみ見るので日付は影響しない)
+    return d.getTime();
+  };
+  document.querySelectorAll("#time-presets .preset-chip[data-min]").forEach((b) => {
     b.addEventListener("click", () => {
-      const d = new Date(Date.now() + Number(b.dataset.min) * 60000);
-      untilInput.value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      const base = untilInput.value ? hhmmToTodayTs(untilInput.value) : Date.now();
+      setUntilFromTs(base + Number(b.dataset.min) * 60000);
     });
   });
+  // 現在時刻に戻す(積み上げのやり直し用)
+  $("btn-now-reset").addEventListener("click", () => setUntilFromTs(Date.now()));
 
   // 定型メッセージ
   document.querySelectorAll("#msg-presets .preset-chip").forEach((b) => {
