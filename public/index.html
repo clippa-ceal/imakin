@@ -75,6 +75,7 @@
           <button class="preset-chip">有酸素</button>
         </div>
         <button id="btn-send" class="btn primary big">🔥 みんなに宣言する</button>
+        <p class="muted small">宣言すると時計がスタートし「筋トレ中」になります⏱</p>
         <p class="muted small">※ 相手に届いたかどうかは分かりません(仕様です)</p>
       </div>
 
@@ -227,6 +228,7 @@
   <!-- 筋トレ中の画面(時計 + フキダシ付箋) -->
   <div id="workout-screen" class="workout-screen" hidden>
     <div class="workout-head">
+      <span class="workout-badge">🏋 筋トレ中</span>
       <p id="workout-until" class="workout-until"></p>
       <button id="workout-exit" class="chip-x" aria-label="閉じる">×</button>
     </div>
@@ -237,7 +239,7 @@
       <p id="workout-msg" class="workout-msg"></p>
     </div>
     <div id="bubble-layer" class="bubble-layer"></div>
-    <p id="workout-hint" class="workout-hint">友達からの返信がフキダシでここに貼られます。フキダシはタップでスタンプを押せます</p>
+    <p id="workout-hint" class="workout-hint">友達の宣言がフキダシで届きます。筋トレ中は、フキダシをタップしてスタンプだけ返せます👍</p>
     <div id="stamp-picker" class="stamp-picker" hidden></div>
     <div id="finish-panel" class="finish-panel" hidden>
       <p class="field-label">今日の筋トレはどうだった?</p>

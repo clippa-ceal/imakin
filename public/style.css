@@ -220,10 +220,15 @@ input:focus { border-color: var(--accent); }
   overflow: hidden;
 }
 .workout-head {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 10px;
   position: relative; z-index: 2;
 }
-.workout-until { font-size: 14px; font-weight: 700; color: var(--accent2); }
+.workout-badge {
+  font-size: 12px; font-weight: 800; color: #1a1206;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 999px; padding: 4px 10px; flex-shrink: 0;
+}
+.workout-until { font-size: 14px; font-weight: 700; color: var(--accent2); flex: 1; }
 .workout-clock {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; pointer-events: none;
