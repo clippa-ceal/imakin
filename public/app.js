@@ -244,8 +244,14 @@ function main() {
   const CHICK_COLOR_CYCLE = ["", "c-pink", "c-green", "c-blue", "c-purple", "c-orange"];
   const CHICK_CACHE_KEY = "imakinChickCache";
   let chickCounts = {};      // uid -> 直近14日の筋トレ日数
+  let chickWeek = {};        // uid -> 今週の筋トレ日数
   let chickFriendUids = [];  // 友達のuid一覧(watchFriendsが更新)
-  try { chickCounts = JSON.parse(localStorage.getItem(CHICK_CACHE_KEY)) || {}; } catch { /* 破損時は無視 */ }
+  let lastMood = null;       // 自分の直近の振り返り { day, mood }
+  try {
+    const c = JSON.parse(localStorage.getItem(CHICK_CACHE_KEY)) || {};
+    chickCounts = c.counts || {};
+    chickWeek = c.week || {};
+  } catch { /* 破損時は無視 */ }
   let myDays = new Set();    // 自分の筋トレ日(直近14日、ストリーク計算用)
 
   const localDayStr = (t) => {
@@ -287,6 +293,15 @@ function main() {
     }
     $("home-greeting").textContent =
       `${myProfile.name} さん、` + (parts.length ? parts.join("・") + " " : "") + "今日もやりますか";
+    // 前回の振り返り
+    const lm = $("last-mood");
+    if (lastMood && MOOD_EMOJI[lastMood.mood]) {
+      const [, m2, d2] = lastMood.day.split("-").map(Number);
+      lm.hidden = false;
+      lm.textContent = `前回の振り返り: ${MOOD_EMOJI[lastMood.mood]} ${MOOD_LABEL[lastMood.mood]}(${m2}/${d2})`;
+    } else {
+      lm.hidden = true;
+    }
   }
 
   // 「HH:MM」の終了予定を、開始時刻を基準にタイムスタンプへ(夜またぎ対応)
@@ -311,7 +326,14 @@ function main() {
           where(documentId(), ">=", cutoff),
         ));
         chickCounts[uid] = snap.size;
-        if (uid === me.uid) myDays = new Set(snap.docs.map((d) => d.id));
+        const weekCutoff = localDayStr(Date.now() - ((new Date().getDay() + 6) % 7) * 86400000);
+        chickWeek[uid] = snap.docs.filter((d) => d.id >= weekCutoff).length;
+        if (uid === me.uid) {
+          myDays = new Set(snap.docs.map((d) => d.id));
+          const withMood = snap.docs.filter((d) => d.data().mood)
+            .sort((a, b) => (a.id < b.id ? 1 : -1))[0];
+          lastMood = withMood ? { day: withMood.id, mood: withMood.data().mood } : null;
+        }
         // 友達が「いま筋トレ中」かどうか(今日の記録の終了予定がまだ先)
         if (uid !== me.uid) {
           snap.forEach((d) => {
@@ -328,7 +350,7 @@ function main() {
     $("active-list").textContent = activeNow
       .map((a) => `${friendProfiles[a.uid]?.name || "友達"}(〜${a.untilTime})`)
       .join(" ・ ");
-    localStorage.setItem(CHICK_CACHE_KEY, JSON.stringify(chickCounts));
+    localStorage.setItem(CHICK_CACHE_KEY, JSON.stringify({ counts: chickCounts, week: chickWeek }));
     renderChicks();
     updateGreeting();
   }
@@ -388,9 +410,21 @@ function main() {
         crown.textContent = "👑";
         chicks.appendChild(crown);
       }
+      // にわとりに進化した週は一度だけお祝い
+      if (r.self && n >= 7) {
+        const weekKey = localDayStr(Date.now() - ((new Date().getDay() + 6) % 7) * 86400000);
+        if (localStorage.getItem("imakinChicken") !== weekKey) {
+          localStorage.setItem("imakinChicken", weekKey);
+          toast("🐔 ひよこがにわとりに進化しました!");
+        }
+      }
       const count = document.createElement("span");
       count.className = "chick-count";
-      count.textContent = `${n}日`;
+      const total = document.createElement("span");
+      total.textContent = `${n}日`;
+      const wk = document.createElement("small");
+      wk.textContent = `今週${chickWeek[r.uid] || 0}`;
+      count.append(total, wk);
       li.append(name, chicks, count);
       if (r.self) li.addEventListener("click", () => switchTab("history"));
       else li.addEventListener("click", () => cycleChickColor(r.uid, chicks));
@@ -413,6 +447,7 @@ function main() {
 
   // ---------- 記録(セッション履歴) ----------
   const MOOD_EMOJI = { fire: "🔥", good: "😊", meh: "🫠" };
+  const MOOD_LABEL = { fire: "やり切った", good: "ぼちぼち", meh: "さぼり気味" };
 
   // 週の目標設定
   document.querySelectorAll("#goal-chips .preset-chip").forEach((btn) => {
@@ -516,6 +551,7 @@ function main() {
       const date = new Date(y, mo - 1, da);
       const li = document.createElement("li");
       li.className = "history-day" + (entry.id === localDayStr(Date.now()) ? " today" : "");
+      li.dataset.day = entry.id;
       const head = document.createElement("div");
       head.className = "history-date";
       head.textContent = `${mo}月${da}日(${week[date.getDay()]}) `
@@ -559,7 +595,18 @@ function main() {
       const c = document.createElement("span");
       c.className = "cell";
       if (day === todayStr) c.classList.add("today");
-      if (did) c.textContent = "🐤";
+      if (did) {
+        c.textContent = "🐤";
+        // タップでその日の履歴へ
+        c.style.cursor = "pointer";
+        c.addEventListener("click", () => {
+          const target = document.querySelector(`#history-list li[data-day="${day}"]`);
+          if (!target) return;
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+          target.classList.add("flash");
+          setTimeout(() => target.classList.remove("flash"), 1500);
+        });
+      }
       else if (ts > Date.now()) { c.classList.add("future"); c.textContent = "・"; }
       else { c.classList.add("miss"); c.textContent = "・"; }
       cal.appendChild(c);

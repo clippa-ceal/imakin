@@ -172,6 +172,7 @@ input:focus { border-color: var(--accent); }
 .dot-cal .cell.today { outline: 1px solid var(--accent); }
 
 .history-day.today { border: 1px solid #5a4630; }
+.history-day.flash { outline: 2px solid var(--accent); transition: outline .2s; }
 .history-day { flex-direction: column; align-items: stretch; gap: 4px; }
 .history-date { font-weight: 700; font-size: 14px; }
 .history-starts { list-style: none; display: flex; flex-direction: column; gap: 2px; }
@@ -182,7 +183,11 @@ input:focus { border-color: var(--accent); }
 .chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }
 .chick-row .chicks { flex: 1; display: flex; flex-wrap: wrap; font-size: 20px; line-height: 1.25; }
 .chick { display: inline-block; }
-.chick-count { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.chick-count {
+  color: var(--muted); font-size: 12px; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3;
+}
+.chick-count small { font-size: 10px; opacity: .8; }
 /* ひよこの色(絵文字を色相シフトで着色) */
 .c-pink .chick { filter: hue-rotate(285deg) saturate(1.6); }
 .c-green .chick { filter: hue-rotate(55deg) saturate(1.2); }
