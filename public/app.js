@@ -203,6 +203,8 @@ function main() {
   });
 
   $("btn-goto-friends").addEventListener("click", () => switchTab("friends"));
+  // みんなタブ:共鳴して全員に宣言(直近で始めた人の終了時刻に合わせる)
+  $("btn-resonate-all").addEventListener("click", () => composeResonate(activeFriends[0]?.untilTime));
 
   $("btn-send").addEventListener("click", async () => {
     const btn = $("btn-send");
@@ -399,6 +401,9 @@ function main() {
     const badge = $("reply-badge");
     badge.hidden = activeFriends.length === 0;
     badge.textContent = String(activeFriends.length);
+    // 誰か筋トレ中なら「共鳴して宣言(全員へ)」を出す
+    const resonateBtn = $("btn-resonate-all");
+    if (resonateBtn) resonateBtn.hidden = activeFriends.length === 0;
     list.innerHTML = "";
     if (activeFriends.length === 0) {
       list.innerHTML = `<li class="muted">いま筋トレ中の友達はいません。宣言が届くとここに出ます💪</li>`;
