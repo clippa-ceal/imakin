@@ -163,12 +163,15 @@ input:focus { border-color: var(--accent); }
   width: calc(100% - 20px); max-width: 460px;
   background: var(--card2); border: 1px solid var(--accent);
   border-radius: 14px; padding: 12px 14px;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; gap: 10px;
   box-shadow: 0 8px 30px rgba(0,0,0,.5); z-index: 50;
 }
+.banner-head { display: flex; align-items: flex-start; gap: 10px; }
 .banner-body { flex: 1; min-width: 0; }
 .banner-body p:first-child { font-weight: 700; font-size: 14px; }
 .banner-body p:last-child { font-size: 13px; }
+.banner-actions { display: flex; gap: 8px; }
+.banner-actions .btn { flex: 1; }
 
 #notify-status { font-weight: 700; }
 

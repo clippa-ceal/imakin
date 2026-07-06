@@ -214,7 +214,7 @@ function main() {
     try {
       const send = httpsCallable(functions, "sendWorkout");
       await send({ untilTime, message, replyTo: replyTo?.uid ?? null });
-      toast(replyTo ? `${replyTo.name}さんに返信しました💪` : "送信しました💪");
+      toast(replyTo ? `${replyTo.name}さんと一緒に筋トレ開始💪` : "みんなに宣言しました💪");
       $("message").value = "";
       $("msg-count").textContent = "0";
       const withName = replyTo?.name || "";
@@ -232,15 +232,35 @@ function main() {
     }
   });
 
-  // ---------- 返信 ----------
-  function setReply(uid, name) {
+  // ---------- 宣言モード(通常 / 共鳴 / 一緒に筋トレ) ----------
+  // 受け取った終了時刻を自分の入力にプリフィル(同じ時間で揃えやすく)
+  function prefillUntil(untilTime) {
+    if (/^([01]\d|2[0-3]):[0-5]\d$/.test(untilTime || "")) untilInput.value = untilTime;
+  }
+
+  // 一緒に筋トレ:その人だけに宣言(1対1)
+  function composeTogether(uid, name, untilTime) {
     replyTo = { uid, name };
-    $("reply-chip-text").textContent = `↩ ${name} さんに返信中`;
+    prefillUntil(untilTime);
+    $("reply-chip-text").textContent = `🤝 ${name} さんと一緒に筋トレ`;
     $("reply-chip").hidden = false;
-    $("btn-send").textContent = `↩ ${name} さんに返信する`;
+    $("btn-send").textContent = `🤝 ${name} さんと筋トレ開始`;
     switchTab("declare");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  // 共鳴:自分も全員に宣言(受け取った時間に合わせる)
+  function composeResonate(untilTime) {
+    replyTo = null;
+    prefillUntil(untilTime);
+    $("reply-chip-text").textContent = "🔗 共鳴して宣言(全員に届きます)";
+    $("reply-chip").hidden = false;
+    $("btn-send").textContent = "🔥 共鳴して宣言する";
+    switchTab("declare");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast("🔗 共鳴!同じ時間で宣言しよう");
+  }
+
   function clearReply() {
     replyTo = null;
     $("reply-chip").hidden = true;
@@ -251,7 +271,7 @@ function main() {
   function handleUrlReply() {
     const p = new URLSearchParams(location.search);
     if (p.get("replyTo")) {
-      setReply(p.get("replyTo"), p.get("name") || "友達");
+      composeTogether(p.get("replyTo"), p.get("name") || "友達");
       history.replaceState(null, "", location.pathname);
     }
   }
@@ -405,11 +425,12 @@ function main() {
       like.textContent = "👍";
       like.title = "👍を送る";
       like.addEventListener("click", () => sendQuickStamp(a.uid, name));
-      const rep = document.createElement("button");
-      rep.className = "btn primary small-btn";
-      rep.textContent = "返信";
-      rep.addEventListener("click", () => setReply(a.uid, name));
-      li.append(img, body, like, rep);
+      const together = document.createElement("button");
+      together.className = "btn primary small-btn";
+      together.textContent = "🤝 一緒に";
+      together.title = "一緒に筋トレ(この人に宣言)";
+      together.addEventListener("click", () => composeTogether(a.uid, name, a.untilTime));
+      li.append(img, body, like, together);
       list.appendChild(li);
     }
   }
@@ -1266,12 +1287,17 @@ function main() {
       $("banner-msg").textContent = `${untilTime}まで` + (message ? `「${message}」` : "");
     }
     $("banner").hidden = false;
-    // 👍だけ返す(スタンプ通知には出さない)
-    $("banner-like").hidden = kind === "stamp";
+    // 誰かの筋トレ開始のときだけ「共鳴 / 一緒に筋トレ」を出す
+    const isStart = kind === "start";
+    $("banner-resonate").hidden = !isStart;
+    $("banner-together").hidden = !isStart;
+    $("banner-like").hidden = kind === "stamp"; // スタンプ通知には👍を出さない
     $("banner-like").onclick = () => { $("banner").hidden = true; sendQuickStamp(uid, name); };
-    $("banner-reply").onclick = () => { $("banner").hidden = true; setReply(uid, name); };
+    $("banner-resonate").onclick = () => { $("banner").hidden = true; composeResonate(untilTime); };
+    $("banner-together").onclick = () => { $("banner").hidden = true; composeTogether(uid, name, untilTime); };
     $("banner-close").onclick = () => { $("banner").hidden = true; };
     clearTimeout(showBanner._t);
-    showBanner._t = setTimeout(() => { $("banner").hidden = true; }, 15000);
+    // 開始通知は共鳴の判断に時間がかかるので長め、それ以外は短め
+    showBanner._t = setTimeout(() => { $("banner").hidden = true; }, isStart ? 25000 : 12000);
   }
 }

@@ -257,15 +257,20 @@
     <button id="btn-workout-done" class="btn primary big workout-done">💪 筋トレ終了</button>
   </div>
 
-  <!-- 受信バナー(アプリを開いているときに通知が来た場合) -->
+  <!-- 受信バナー(休息中に通知が来た場合。共鳴 or 一緒に筋トレ で応じる) -->
   <div id="banner" class="banner" hidden>
-    <div class="banner-body">
-      <p id="banner-title"></p>
-      <p id="banner-msg" class="muted"></p>
+    <div class="banner-head">
+      <div class="banner-body">
+        <p id="banner-title"></p>
+        <p id="banner-msg" class="muted"></p>
+      </div>
+      <button id="banner-close" class="chip-x" aria-label="閉じる">×</button>
     </div>
-    <button id="banner-like" class="btn ghost small-btn" title="👍を送る">👍</button>
-    <button id="banner-reply" class="btn primary small-btn">返信</button>
-    <button id="banner-close" class="chip-x" aria-label="閉じる">×</button>
+    <div class="banner-actions" id="banner-actions">
+      <button id="banner-like" class="btn ghost small-btn" title="👍を送る">👍</button>
+      <button id="banner-resonate" class="btn ghost small-btn">🔗 共鳴</button>
+      <button id="banner-together" class="btn primary small-btn">🤝 一緒に</button>
+    </div>
   </div>
 
   <div id="toast" class="toast" hidden></div>
