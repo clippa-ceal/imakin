@@ -161,6 +161,7 @@ function main() {
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
     if (tab === "history") loadHistory();
+    if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
 
   // ---------- ホーム:送信 ----------
@@ -234,13 +235,16 @@ function main() {
   // ---------- 返信 ----------
   function setReply(uid, name) {
     replyTo = { uid, name };
-    $("reply-chip-text").textContent = `↩ ${name} さんへ返信`;
+    $("reply-chip-text").textContent = `↩ ${name} さんに返信中`;
     $("reply-chip").hidden = false;
-    switchTab("home");
+    $("btn-send").textContent = `↩ ${name} さんに返信する`;
+    switchTab("declare");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function clearReply() {
     replyTo = null;
     $("reply-chip").hidden = true;
+    $("btn-send").textContent = "🔥 みんなに宣言する";
   }
   $("reply-chip-clear").addEventListener("click", clearReply);
 
@@ -258,6 +262,7 @@ function main() {
   let chickCounts = {};      // uid -> 直近14日の筋トレ日数
   let chickWeek = {};        // uid -> 今週の筋トレ日数
   let chickFriendUids = [];  // 友達のuid一覧(watchFriendsが更新)
+  let activeFriends = [];    // いま筋トレ中の友達 [{uid, untilTime, message, startAt}]
   let lastMood = null;       // 自分の直近の振り返り { day, mood }
   try {
     const c = JSON.parse(localStorage.getItem(CHICK_CACHE_KEY)) || {};
@@ -352,19 +357,72 @@ function main() {
             const s = d.data();
             const end = endTsFrom(s.lastStartAt, s.untilTime);
             if (end && Date.now() < end && Date.now() - s.lastStartAt < 12 * 3600000) {
-              activeNow.push({ uid, untilTime: s.untilTime });
+              const starts = Array.isArray(s.starts) ? s.starts : [];
+              const message = starts.length ? (starts[starts.length - 1].message || "") : "";
+              activeNow.push({ uid, untilTime: s.untilTime, message, startAt: s.lastStartAt });
             }
           });
         }
       } catch (e) { console.error(e); }
     }));
-    $("active-card").hidden = activeNow.length === 0;
-    $("active-list").textContent = activeNow
-      .map((a) => `${friendProfiles[a.uid]?.name || "友達"}(〜${a.untilTime})`)
-      .join(" ・ ");
+    activeFriends = activeNow.sort((a, b) => b.startAt - a.startAt);
     localStorage.setItem(CHICK_CACHE_KEY, JSON.stringify({ counts: chickCounts, week: chickWeek }));
     renderChicks();
+    renderReplyList();
     updateGreeting();
+  }
+
+  // 返信タブ:いま筋トレ中の友達の宣言を一覧表示
+  function renderReplyList() {
+    const list = $("reply-list");
+    if (!list) return;
+    const badge = $("reply-badge");
+    badge.hidden = activeFriends.length === 0;
+    badge.textContent = String(activeFriends.length);
+    list.innerHTML = "";
+    if (activeFriends.length === 0) {
+      list.innerHTML = `<li class="muted">いま筋トレ中の友達はいません。宣言が届くとここに出ます💪</li>`;
+      return;
+    }
+    for (const a of activeFriends) {
+      const p = friendProfiles[a.uid] || {};
+      const name = p.name || "友達";
+      const li = document.createElement("li");
+      li.className = "reply-item";
+      const img = document.createElement("img");
+      img.className = "avatar"; img.src = p.photo || "icon.svg"; img.alt = "";
+      const body = document.createElement("div");
+      body.className = "reply-body";
+      const nm = document.createElement("p");
+      nm.className = "reply-name";
+      nm.textContent = `${name}・〜${a.untilTime} まで`;
+      const msg = document.createElement("p");
+      msg.className = "reply-msg";
+      msg.textContent = a.message ? `「${a.message}」` : "💪🔥";
+      body.append(nm, msg);
+      const like = document.createElement("button");
+      like.className = "btn ghost small-btn";
+      like.textContent = "👍";
+      like.title = "👍を送る";
+      like.addEventListener("click", () => sendQuickStamp(a.uid, name));
+      const rep = document.createElement("button");
+      rep.className = "btn primary small-btn";
+      rep.textContent = "返信";
+      rep.addEventListener("click", () => setReply(a.uid, name));
+      li.append(img, body, like, rep);
+      list.appendChild(li);
+    }
+  }
+
+  // 👍だけワンタップで送る(バナー/返信タブ共通)
+  async function sendQuickStamp(uid, name) {
+    try {
+      await httpsCallable(functions, "sendWorkout")({ kind: "stamp", message: "👍", replyTo: uid });
+      toast(`${name} さんに 👍 を送りました`);
+    } catch (e) {
+      console.error(e);
+      toast("送れませんでした");
+    }
   }
 
   function renderChicks() {
@@ -1210,16 +1268,7 @@ function main() {
     $("banner").hidden = false;
     // 👍だけ返す(スタンプ通知には出さない)
     $("banner-like").hidden = kind === "stamp";
-    $("banner-like").onclick = async () => {
-      $("banner").hidden = true;
-      try {
-        await httpsCallable(functions, "sendWorkout")({ kind: "stamp", message: "👍", replyTo: uid });
-        toast(`${name} さんに 👍 を送りました`);
-      } catch (e) {
-        console.error(e);
-        toast("送れませんでした");
-      }
-    };
+    $("banner-like").onclick = () => { $("banner").hidden = true; sendQuickStamp(uid, name); };
     $("banner-reply").onclick = () => { $("banner").hidden = true; setReply(uid, name); };
     $("banner-close").onclick = () => { $("banner").hidden = true; };
     clearTimeout(showBanner._t);

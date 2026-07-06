@@ -38,10 +38,10 @@
   <!-- メイン画面 -->
   <section id="screen-main" class="screen" hidden>
 
-    <!-- ホーム(送信) -->
-    <div id="tab-home" class="tab-page">
+    <!-- 宣言(送信) -->
+    <div id="tab-declare" class="tab-page">
       <header class="page-head">
-        <h2>今から筋トレ 💪</h2>
+        <h2>今から筋トレ、宣言する 💪</h2>
         <p id="home-greeting" class="muted"></p>
         <p id="last-mood" class="muted small" hidden></p>
       </header>
@@ -51,12 +51,7 @@
         <button id="reply-chip-clear" class="chip-x" aria-label="返信をやめる">×</button>
       </div>
 
-      <div class="card" id="active-card" hidden>
-        <p class="field-label">🔥 いま筋トレ中</p>
-        <p id="active-list"></p>
-      </div>
-
-      <div class="card">
+      <div class="card declare-card">
         <label class="field">
           <span class="field-label">何時まで?</span>
           <input type="time" id="until-time">
@@ -79,7 +74,7 @@
           <button class="preset-chip">肩と腕</button>
           <button class="preset-chip">有酸素</button>
         </div>
-        <button id="btn-send" class="btn primary big">🔥 筋トレ開始を知らせる</button>
+        <button id="btn-send" class="btn primary big">🔥 みんなに宣言する</button>
         <p class="muted small">※ 相手に届いたかどうかは分かりません(仕様です)</p>
       </div>
 
@@ -88,19 +83,27 @@
         <p class="muted small">通知を送り合うには友達登録が必要です。6文字のコードを交換しましょう</p>
         <button id="btn-goto-friends" class="btn primary">👥 友達タブでコードを交換</button>
       </div>
+    </div>
 
-      <div class="card">
-        <p class="field-label">🐤 筋トレ記録(直近14日)</p>
-        <p id="week-progress" class="week-progress" hidden></p>
-        <ul id="chick-list" class="plain-list"></ul>
-        <p class="muted small">筋トレした日にひよこが増え、7日以上でにわとりに育ちます🐔</p>
-        <p class="muted small">タップ → 自分の行:記録ページへ／友達の行:色を変える</p>
-      </div>
+    <!-- 返信(友達の宣言を読む&返信) -->
+    <div id="tab-reply" class="tab-page" hidden>
+      <header class="page-head">
+        <h2>友達の宣言 💬</h2>
+        <p class="muted small">いま筋トレ中の友達に、👍か一言で返せます</p>
+      </header>
+      <ul id="reply-list" class="plain-list"></ul>
     </div>
 
     <!-- 記録 -->
     <div id="tab-history" class="tab-page" hidden>
       <header class="page-head"><h2>筋トレの記録</h2></header>
+      <div class="card">
+        <p class="field-label">🐤 ひよこ(直近14日)</p>
+        <p id="week-progress" class="week-progress" hidden></p>
+        <ul id="chick-list" class="plain-list"></ul>
+        <p class="muted small">筋トレした日にひよこが増え、7日以上でにわとりに育ちます🐔</p>
+        <p class="muted small">タップ → 自分の行:下の履歴へ／友達の行:色を変える</p>
+      </div>
       <div class="card">
         <p class="field-label">🎯 週の目標</p>
         <div class="chip-row" id="goal-chips">
@@ -212,7 +215,8 @@
 
     <!-- 下部ナビ -->
     <nav class="bottom-nav">
-      <button class="nav-btn active" data-tab="home"><span class="nav-icon">💪</span>ホーム</button>
+      <button class="nav-btn active" data-tab="declare"><span class="nav-icon">💪</span>宣言</button>
+      <button class="nav-btn" data-tab="reply"><span class="nav-icon">💬</span>返信<span id="reply-badge" class="badge" hidden></span></button>
       <button class="nav-btn" data-tab="history"><span class="nav-icon">🐤</span>記録</button>
       <button class="nav-btn" data-tab="friends"><span class="nav-icon">👥</span>友達<span id="req-badge" class="badge" hidden></span></button>
       <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span>設定</button>
