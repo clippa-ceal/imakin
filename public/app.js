@@ -856,7 +856,9 @@ function main() {
     for (let m = 0; m < calendarMonths; m++) {
       host.appendChild(renderMonthGrid(now.getFullYear(), now.getMonth() - m, byDay));
     }
-    $("btn-cal-more").hidden = calendarMonths >= 12;
+    const moreBtn = $("btn-cal-more");
+    moreBtn.hidden = calendarMonths >= 12;
+    moreBtn.textContent = `さらに過去を見る(いま${calendarMonths}ヶ月分・最大1年)`;
   }
   // その日のあらまし(タップ時のポップ用)
   function daySummary(day, e) {
@@ -897,6 +899,7 @@ function main() {
       if (byDay[day]) {
         done++;
         c.textContent = "🐤";
+        if (byDay[day].mood) c.classList.add(`m-${byDay[day].mood}`); // 気分のドット
         c.style.cursor = "pointer";
         c.addEventListener("click", () => toast(daySummary(day, byDay[day])));
       } else {

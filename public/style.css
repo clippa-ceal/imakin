@@ -230,6 +230,15 @@ input:focus, textarea:focus { border-color: var(--accent); }
 }
 .cal-title small { color: var(--muted); font-weight: 400; }
 .cal-month .dot-cal { gap: 6px 4px; }
+/* 気分のふりかえりがある日は右上に色ドット */
+.dot-cal .cell { position: relative; }
+.dot-cal .cell.m-fire::after, .dot-cal .cell.m-good::after, .dot-cal .cell.m-meh::after {
+  content: ""; position: absolute; top: -1px; right: 0;
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.dot-cal .cell.m-fire::after { background: #ff6b4a; }
+.dot-cal .cell.m-good::after { background: #7bd47e; }
+.dot-cal .cell.m-meh::after { background: #9aa3c7; }
 
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
