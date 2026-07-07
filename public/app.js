@@ -651,7 +651,7 @@ function main() {
       $("mood-stats").hidden = true;
       $("history-summary").textContent = "開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です";
       renderWeeksView(new Set());
-      list.innerHTML = `<li class="muted">まだ記録がありません。ホームから「筋トレ開始」を送ると、その日のひよこ🐤がここに並びます</li>`;
+      list.innerHTML = `<li class="muted">まだ記録がありません。「宣言」タブから筋トレを宣言すると、その日の記録がここに並びます🐤</li>`;
       return;
     }
     // 統計: 今月の日数と連続日数
@@ -673,16 +673,17 @@ function main() {
     else if (streak >= 2) streakText = ` ・ ${streak}日連続🔥(ベスト ${best}日)`;
     else if (best >= 2) streakText = ` ・ ベスト ${best}日連続`;
     $("history-stats").hidden = false;
-    $("history-stats").textContent = `今月 ${monthCount}日` + streakText;
+    $("history-stats").textContent = `今月は ${monthCount}日 筋トレ` + streakText;
     // 記録タブの導線カードにもサマリを出す
-    $("history-summary").textContent = `今月 ${monthCount}日` + streakText + " — 開始時刻やメモはこちら";
+    $("history-summary").textContent = `今月は ${monthCount}日 筋トレ` + streakText;
     // 気分の集計(振り返りした日ぶん)
     const moodCount = { fire: 0, good: 0, meh: 0 };
     entries.forEach((x) => { if (moodCount[x.mood] !== undefined) moodCount[x.mood]++; });
     const totalMood = moodCount.fire + moodCount.good + moodCount.meh;
     $("mood-stats").hidden = totalMood === 0;
     if (totalMood > 0) {
-      $("mood-stats").textContent = `振り返り: 🔥${moodCount.fire} 😊${moodCount.good} 🫠${moodCount.meh}`;
+      $("mood-stats").textContent =
+        `ふりかえりの内訳: 🔥やり切った${moodCount.fire} ・ 😊ぼちぼち${moodCount.good} ・ 🫠さぼり気味${moodCount.meh}`;
     }
     renderWeeksView(ids);
     const week = ["日", "月", "火", "水", "木", "金", "土"];
