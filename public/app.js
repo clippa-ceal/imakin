@@ -522,7 +522,7 @@ function main() {
       if (n === 0) {
         const z = document.createElement("span");
         z.className = "muted small";
-        z.textContent = "まだなし";
+        z.textContent = "まだ0日";
         chicks.appendChild(z);
       } else {
         const emoji = n >= 7 ? "🐔" : "🐤"; // 14日中7日以上でにわとりに育つ
