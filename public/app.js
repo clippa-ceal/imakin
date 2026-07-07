@@ -158,15 +158,17 @@ function main() {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
   function switchTab(tab) {
-    // 友達ページは設定のサブページ扱い(ナビ上は設定をハイライト)
-    const navTab = tab === "friends" ? "settings" : tab;
+    // サブページはナビ上では親タブをハイライト(友達→設定、日ごとの記録→記録)
+    const navTab = tab === "friends" ? "settings" : tab === "historyDetail" ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
-    if (tab === "history") loadHistory();
+    if (tab === "history" || tab === "historyDetail") loadHistory();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
   $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
+  $("btn-open-history").addEventListener("click", () => switchTab("historyDetail"));
+  $("btn-history-back").addEventListener("click", () => switchTab("history"));
 
   // ---------- ホーム:送信 ----------
   const untilInput = $("until-time");
@@ -470,6 +472,13 @@ function main() {
     }
   }
 
+  // 友達が増えても一覧が伸びすぎないように、6人目からは折りたたむ
+  let chicksExpanded = false;
+  $("btn-more-chicks").addEventListener("click", () => {
+    chicksExpanded = !chicksExpanded;
+    renderChicks();
+  });
+
   function renderChicks() {
     const list = $("chick-list");
     if (!me) return;
@@ -479,8 +488,10 @@ function main() {
     const wp = $("week-progress");
     wp.hidden = false;
     wp.textContent = goal > 0
-      ? (wc >= goal ? `今週 ${wc}/${goal}日 — 目標達成🎉` : `今週 ${wc}/${goal}日`)
-      : `今週 ${wc}日`;
+      ? (wc >= goal
+          ? `今週の目標: ${wc}/${goal}日 — 達成🎉`
+          : `今週の目標: ${wc}/${goal}日(あと${goal - wc}日)`)
+      : `今週は ${wc}日 筋トレ`;
     // 目標を達成した週は、その週に一度だけお祝いトースト
     if (goal > 0 && wc >= goal) {
       const weekKey = localDayStr(Date.now() - ((new Date().getDay() + 6) % 7) * 86400000);
@@ -490,11 +501,14 @@ function main() {
       }
     }
     list.innerHTML = "";
-    const rows = [
-      { uid: me.uid, name: "あなた", self: true },
-      ...chickFriendUids.map((u) => ({ uid: u, name: friendProfiles[u]?.name || "友達" })),
-    ];
-    for (const r of rows) {
+    // 友達はよく続いている順(直近14日の日数が多い順)。自分は常に先頭
+    const friends = chickFriendUids
+      .map((u) => ({ uid: u, name: friendProfiles[u]?.name || "友達" }))
+      .sort((a, b) => (chickCounts[b.uid] || 0) - (chickCounts[a.uid] || 0));
+    const rows = [{ uid: me.uid, name: "あなた", self: true }, ...friends];
+    const COLLAPSE_AT = 6; // 自分+友達5人までは全員表示
+    const visible = !chicksExpanded && rows.length > COLLAPSE_AT ? rows.slice(0, COLLAPSE_AT) : rows;
+    for (const r of visible) {
       const n = Math.min(chickCounts[r.uid] || 0, 14);
       const li = document.createElement("li");
       li.className = "chick-row" + (r.self ? " self" : "");
@@ -508,7 +522,7 @@ function main() {
       if (n === 0) {
         const z = document.createElement("span");
         z.className = "muted small";
-        z.textContent = "まだなし";
+        z.textContent = "まだ0日";
         chicks.appendChild(z);
       } else {
         const emoji = n >= 7 ? "🐔" : "🐤"; // 14日中7日以上でにわとりに育つ
@@ -538,13 +552,22 @@ function main() {
       const total = document.createElement("span");
       total.textContent = `${n}日`;
       const wk = document.createElement("small");
-      wk.textContent = `今週${chickWeek[r.uid] || 0}`;
+      wk.textContent = `今週${chickWeek[r.uid] || 0}日`;
       count.append(total, wk);
       li.append(name, chicks, count);
-      if (r.self) li.addEventListener("click", () => switchTab("history"));
+      if (r.self) li.addEventListener("click", () => switchTab("historyDetail"));
       else li.addEventListener("click", () => cycleChickColor(r.uid, chicks));
       list.appendChild(li);
     }
+    if (friends.length === 0) {
+      const li = document.createElement("li");
+      li.className = "muted";
+      li.textContent = "友達を追加すると、ここに友達のひよこも並びます";
+      list.appendChild(li);
+    }
+    const moreBtn = $("btn-more-chicks");
+    moreBtn.hidden = rows.length <= COLLAPSE_AT;
+    moreBtn.textContent = chicksExpanded ? "たたむ" : `他の${rows.length - COLLAPSE_AT}人も見る`;
   }
 
   function cycleChickColor(uid, chicksEl) {
@@ -628,8 +651,9 @@ function main() {
     if (entries.length === 0) {
       $("history-stats").hidden = true;
       $("mood-stats").hidden = true;
+      $("history-summary").textContent = "開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です";
       renderWeeksView(new Set());
-      list.innerHTML = `<li class="muted">まだ記録がありません。ホームから「筋トレ開始」を送ると、その日のひよこ🐤がここに並びます</li>`;
+      list.innerHTML = `<li class="muted">まだ記録がありません。「宣言」タブから筋トレを宣言すると、その日の記録がここに並びます🐤</li>`;
       return;
     }
     // 統計: 今月の日数と連続日数
@@ -651,49 +675,63 @@ function main() {
     else if (streak >= 2) streakText = ` ・ ${streak}日連続🔥(ベスト ${best}日)`;
     else if (best >= 2) streakText = ` ・ ベスト ${best}日連続`;
     $("history-stats").hidden = false;
-    $("history-stats").textContent = `今月 ${monthCount}日` + streakText;
+    $("history-stats").textContent = `今月は ${monthCount}日 筋トレ` + streakText;
+    // 記録タブの導線カードにもサマリを出す
+    $("history-summary").textContent = `今月は ${monthCount}日 筋トレ` + streakText;
     // 気分の集計(振り返りした日ぶん)
     const moodCount = { fire: 0, good: 0, meh: 0 };
     entries.forEach((x) => { if (moodCount[x.mood] !== undefined) moodCount[x.mood]++; });
     const totalMood = moodCount.fire + moodCount.good + moodCount.meh;
     $("mood-stats").hidden = totalMood === 0;
     if (totalMood > 0) {
-      $("mood-stats").textContent = `振り返り: 🔥${moodCount.fire} 😊${moodCount.good} 🫠${moodCount.meh}`;
+      $("mood-stats").textContent =
+        `ふりかえりの内訳: 🔥やり切った${moodCount.fire} ・ 😊ぼちぼち${moodCount.good} ・ 🫠さぼり気味${moodCount.meh}`;
     }
     renderWeeksView(ids);
     const week = ["日", "月", "火", "水", "木", "金", "土"];
     const sorted = entries.slice().sort((a, b) => (a.id < b.id ? 1 : -1)); // 新しい日付順
+    const todayStr = localDayStr(Date.now());
+    let prevMonth = null;
     for (const entry of sorted) {
       const [y, mo, da] = entry.id.split("-").map(Number);
       const date = new Date(y, mo - 1, da);
+      // 月が変わったところに見出しを入れる
+      if (prevMonth !== null && mo !== prevMonth) {
+        const sep = document.createElement("li");
+        sep.className = "month-sep";
+        sep.textContent = `${mo}月`;
+        list.appendChild(sep);
+      }
+      prevMonth = mo;
       const li = document.createElement("li");
-      li.className = "history-day" + (entry.id === localDayStr(Date.now()) ? " today" : "");
+      li.className = "history-day" + (entry.id === todayStr ? " today" : "");
       li.dataset.day = entry.id;
       const head = document.createElement("div");
       head.className = "history-date";
-      head.textContent = `${mo}月${da}日(${week[date.getDay()]}) `
+      head.textContent = (entry.id === todayStr ? "きょう・" : "")
+        + `${mo}月${da}日(${week[date.getDay()]}) `
         + "🐤".repeat(Math.min(entry.starts.length, 5))
-        + (entry.mood ? ` ${MOOD_EMOJI[entry.mood] || ""}` : "");
+        + (entry.mood ? ` ${MOOD_EMOJI[entry.mood] || ""}${MOOD_LABEL[entry.mood] || ""}` : "");
       const ul = document.createElement("ul");
       ul.className = "history-starts";
       for (const st of entry.starts) {
         const row = document.createElement("li");
         row.textContent =
           (st.at ? fmtTime(st.at) : "--:--") +
-          (st.untilTime ? ` → 〜${st.untilTime}` : "") +
+          (st.untilTime ? ` → ${st.untilTime}まで` : "") +
           (st.message ? ` 「${st.message}」` : "");
         ul.appendChild(row);
       }
       if (entry.doneMessage) {
         const row = document.createElement("li");
-        row.textContent = `🎉 「${entry.doneMessage}」`;
+        row.textContent = `🎉 ひとこと「${entry.doneMessage}」`;
         ul.appendChild(row);
       }
       li.append(head, ul);
       if (entry.note) {
         const note = document.createElement("p");
         note.className = "history-note";
-        note.textContent = entry.note;
+        note.textContent = `📝 ${entry.note}`;
         li.appendChild(note);
       }
       list.appendChild(li);
@@ -725,9 +763,10 @@ function main() {
       if (day === todayStr) c.classList.add("today");
       if (did) {
         c.textContent = "🐤";
-        // タップでその日の履歴へ
+        // タップで「日ごとの記録」のその日へジャンプ
         c.style.cursor = "pointer";
         c.addEventListener("click", () => {
+          switchTab("historyDetail"); // キャッシュがあれば即時レンダリングされる
           const target = document.querySelector(`#history-list li[data-day="${day}"]`);
           if (!target) return;
           target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -743,7 +782,9 @@ function main() {
     cmp.hidden = false;
     const diff = thisWeek - lastWeek;
     cmp.textContent = `先週 ${lastWeek}日 → 今週 ${thisWeek}日`
-      + (diff > 0 ? " 📈 先週超え!" : diff === 0 && thisWeek > 0 ? "(先週と同ペース)" : "");
+      + (diff > 0 ? " 📈 先週超え!"
+        : diff === 0 && thisWeek > 0 ? "(先週と同ペース)"
+        : diff < 0 ? `(先週まであと${-diff}日)` : "");
     // よくやる曜日(直近60日で2回以上の上位2つ)
     const dowCount = [0, 0, 0, 0, 0, 0, 0];
     ids.forEach((id) => {
@@ -754,7 +795,7 @@ function main() {
       .filter((x) => x.c >= 2).sort((a, b) => b.c - a.c).slice(0, 2);
     $("dow-hint").hidden = best.length === 0;
     if (best.length) {
-      $("dow-hint").textContent = `よくやる曜日: ${best.map((x) => `${names[x.i]}曜`).join("・")}`;
+      $("dow-hint").textContent = `よく筋トレしている曜日: ${best.map((x) => `${names[x.i]}曜`).join("・")}`;
     }
   }
 

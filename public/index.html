@@ -100,17 +100,32 @@
     <div id="tab-history" class="tab-page" hidden>
       <header class="page-head"><h2>筋トレの記録</h2></header>
       <div class="card">
-        <p class="field-label">🐤 ひよこ(直近14日)</p>
+        <p class="field-label">📅 今週のようす</p>
         <p id="week-progress" class="week-progress" hidden></p>
-        <ul id="chick-list" class="plain-list"></ul>
-        <p class="muted small">筋トレした日にひよこが増え、7日以上でにわとりに🐔(友達の行はタップで色変え)</p>
-      </div>
-      <div class="card">
-        <p class="field-label">先週 → 今週</p>
         <p id="week-compare" class="week-progress" hidden></p>
         <div id="dot-cal" class="dot-cal"></div>
         <p id="dow-hint" class="muted small" hidden></p>
+        <p class="muted small">🐤の日をタップすると、その日の記録が見られます</p>
       </div>
+      <div class="card">
+        <p class="field-label">🐤 みんなの継続(この2週間)</p>
+        <ul id="chick-list" class="plain-list"></ul>
+        <button id="btn-more-chicks" class="btn ghost" hidden></button>
+        <p class="muted small">筋トレした日の数だけひよこが並びます。7日でにわとり🐔に成長。友達の行はタップで色を変えられます</p>
+      </div>
+      <div class="card">
+        <p class="field-label">📖 日ごとの記録</p>
+        <p id="history-summary" class="muted small">開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です</p>
+        <button id="btn-open-history" class="btn primary">日ごとの記録を見る</button>
+      </div>
+    </div>
+
+    <!-- 日ごとの記録(記録から開くサブページ) -->
+    <div id="tab-historyDetail" class="tab-page" hidden>
+      <header class="page-head friends-head">
+        <button id="btn-history-back" class="chip-x back-btn" aria-label="記録に戻る">←</button>
+        <h2>日ごとの記録</h2>
+      </header>
       <div class="card">
         <p id="history-stats" class="field-label" hidden></p>
         <p id="mood-stats" class="muted small" hidden></p>
@@ -207,7 +222,7 @@
           <button class="preset-chip" data-goal="4">週4日</button>
           <button class="preset-chip" data-goal="5">週5日</button>
         </div>
-        <p class="muted small">記録タブに「今週 ◯/◯日」で表示されます(月曜はじまり)</p>
+        <p class="muted small">記録タブの「今週のようす」に「今週の目標: ◯/◯日」と表示されます(月曜はじまり)</p>
       </div>
 
       <div class="card" id="install-card" hidden>
