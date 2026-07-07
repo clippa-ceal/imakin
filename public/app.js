@@ -708,7 +708,7 @@ function main() {
       head.textContent = (entry.id === todayStr ? "きょう・" : "")
         + `${mo}月${da}日(${week[date.getDay()]}) `
         + "🐤".repeat(Math.min(entry.starts.length, 5))
-        + (entry.mood ? ` ${MOOD_EMOJI[entry.mood] || ""}` : "");
+        + (entry.mood ? ` ${MOOD_EMOJI[entry.mood] || ""}${MOOD_LABEL[entry.mood] || ""}` : "");
       const ul = document.createElement("ul");
       ul.className = "history-starts";
       for (const st of entry.starts) {
@@ -721,14 +721,14 @@ function main() {
       }
       if (entry.doneMessage) {
         const row = document.createElement("li");
-        row.textContent = `🎉 「${entry.doneMessage}」`;
+        row.textContent = `🎉 ひとこと「${entry.doneMessage}」`;
         ul.appendChild(row);
       }
       li.append(head, ul);
       if (entry.note) {
         const note = document.createElement("p");
         note.className = "history-note";
-        note.textContent = entry.note;
+        note.textContent = `📝 ${entry.note}`;
         li.appendChild(note);
       }
       list.appendChild(li);
