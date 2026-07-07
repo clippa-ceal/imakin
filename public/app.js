@@ -488,8 +488,10 @@ function main() {
     const wp = $("week-progress");
     wp.hidden = false;
     wp.textContent = goal > 0
-      ? (wc >= goal ? `今週 ${wc}/${goal}日 — 目標達成🎉` : `今週 ${wc}/${goal}日`)
-      : `今週 ${wc}日`;
+      ? (wc >= goal
+          ? `今週の目標: ${wc}/${goal}日 — 達成🎉`
+          : `今週の目標: ${wc}/${goal}日(あと${goal - wc}日)`)
+      : `今週は ${wc}日 筋トレ`;
     // 目標を達成した週は、その週に一度だけお祝いトースト
     if (goal > 0 && wc >= goal) {
       const weekKey = localDayStr(Date.now() - ((new Date().getDay() + 6) % 7) * 86400000);
@@ -780,7 +782,9 @@ function main() {
     cmp.hidden = false;
     const diff = thisWeek - lastWeek;
     cmp.textContent = `先週 ${lastWeek}日 → 今週 ${thisWeek}日`
-      + (diff > 0 ? " 📈 先週超え!" : diff === 0 && thisWeek > 0 ? "(先週と同ペース)" : "");
+      + (diff > 0 ? " 📈 先週超え!"
+        : diff === 0 && thisWeek > 0 ? "(先週と同ペース)"
+        : diff < 0 ? `(先週まであと${-diff}日)` : "");
     // よくやる曜日(直近60日で2回以上の上位2つ)
     const dowCount = [0, 0, 0, 0, 0, 0, 0];
     ids.forEach((id) => {
@@ -791,7 +795,7 @@ function main() {
       .filter((x) => x.c >= 2).sort((a, b) => b.c - a.c).slice(0, 2);
     $("dow-hint").hidden = best.length === 0;
     if (best.length) {
-      $("dow-hint").textContent = `よくやる曜日: ${best.map((x) => `${names[x.i]}曜`).join("・")}`;
+      $("dow-hint").textContent = `よく筋トレしている曜日: ${best.map((x) => `${names[x.i]}曜`).join("・")}`;
     }
   }
 
