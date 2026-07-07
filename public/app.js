@@ -112,7 +112,7 @@ function main() {
     watchFriends();
     setupMessaging().catch(console.error);
     handleUrlReply();
-    restoreWorkout(); // 終了時刻前ならリロードしても筋トレ中画面に戻る
+    restoreWorkout(); // 終了予定+60分以内ならリロードしても筋トレ中画面に戻る
   });
 
   // ---------- 初回ユーザー作成 ----------
@@ -377,12 +377,13 @@ function main() {
             .sort((a, b) => (a.id < b.id ? 1 : -1))[0];
           lastMood = withMood ? { day: withMood.id, mood: withMood.data().mood } : null;
         }
-        // 友達が「いま筋トレ中」かどうか(今日の記録の終了予定がまだ先)
+        // 友達が「いま筋トレ中」かどうか(終了予定がまだ先で、終了ボタンも押していない)
         if (uid !== me.uid) {
           snap.forEach((d) => {
             const s = d.data();
             const end = endTsFrom(s.lastStartAt, s.untilTime);
-            if (end && Date.now() < end && Date.now() - s.lastStartAt < 12 * 3600000) {
+            const ended = (s.endedAt || 0) >= s.lastStartAt; // 最後の開始より後に終了済み
+            if (end && !ended && Date.now() < end && Date.now() - s.lastStartAt < 12 * 3600000) {
               const starts = Array.isArray(s.starts) ? s.starts : [];
               const message = starts.length ? (starts[starts.length - 1].message || "") : "";
               activeNow.push({ uid, untilTime: s.untilTime, message, startAt: s.lastStartAt });
@@ -754,6 +755,7 @@ function main() {
     $("workout-msg").hidden = !state.message;
     $("finish-panel").hidden = true;
     $("finish-message").value = "";
+    finishMood = null; // 前回セッションの振り返り選択を持ち越さない
     $("stamp-picker").hidden = true;
     stampTarget = null;
     $("bubble-layer").innerHTML = "";
@@ -807,7 +809,9 @@ function main() {
   function restoreWorkout() {
     try {
       const s = JSON.parse(localStorage.getItem(WORKOUT_KEY));
-      if (s && s.endTs > Date.now()) enterWorkout(s);
+      // 終了予定から60分以内なら復元する(時間切れ直後にリロードしても
+      // 振り返り・終了報告のチャンスを失わない)
+      if (s && s.endTs > Date.now() - 60 * 60000) enterWorkout(s);
       else localStorage.removeItem(WORKOUT_KEY);
     } catch { localStorage.removeItem(WORKOUT_KEY); }
   }
@@ -961,7 +965,11 @@ function main() {
     if (workout && document.visibilityState === "visible") acquireWakeLock();
   });
 
-  $("workout-exit").addEventListener("click", () => exitWorkout());
+  $("workout-exit").addEventListener("click", () => {
+    const w = workout;
+    exitWorkout();
+    if (w && !workout) saveFinish(w); // ×で閉じるのも「終了」扱い(confirmでやめたら書かない)
+  });
 
   // ---------- 筋トレ終了(「終わったよ」メッセージ) ----------
   // 終了報告は、セッション中に反応(フキダシ・スタンプ)をくれた相手にだけ送る
@@ -977,10 +985,14 @@ function main() {
       document.querySelectorAll(".mood-btn").forEach((b) => b.classList.toggle("active", b === btn));
     });
   });
-  function saveMood() {
-    if (!finishMood || !workout) return;
-    const day = localDayStr(workout.startTs || Date.now());
-    updateDoc(doc(db, "users", me.uid, "sessions", day), { mood: finishMood, moodAt: Date.now() })
+  // 終了をセッション記録に書く(振り返りが選ばれていれば一緒に)。
+  // 友達側の「いま筋トレ中」判定は endedAt >= lastStartAt で「終了済み」とみなす
+  function saveFinish(w = workout) {
+    if (!w || !me) return;
+    const day = localDayStr(w.startTs || Date.now());
+    const data = { endedAt: Date.now() };
+    if (finishMood) { data.mood = finishMood; data.moodAt = Date.now(); }
+    updateDoc(doc(db, "users", me.uid, "sessions", day), data)
       .catch(console.error); // 記録がまだ無い日などは黙って諦める
   }
 
@@ -999,7 +1011,7 @@ function main() {
     $("finish-panel").hidden = false;
   });
   $("btn-finish-skip").addEventListener("click", () => {
-    saveMood();
+    saveFinish();
     $("finish-panel").hidden = true;
     exitWorkout(true);
   });
@@ -1011,7 +1023,7 @@ function main() {
       const send = httpsCallable(functions, "sendWorkout");
       await send({ kind: "done", message, to: workoutReactedUids() });
       toast("筋トレ終了を知らせました🎉");
-      saveMood();
+      saveFinish();
       $("finish-panel").hidden = true;
       exitWorkout(true);
     } catch (e) {
