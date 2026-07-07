@@ -848,16 +848,26 @@ function main() {
   });
   async function renderCalendarPage() {
     const entries = await loadAllEntries();
-    const ids = new Set(entries.map((e) => e.id));
+    const byDay = {};
+    entries.forEach((e) => { byDay[e.id] = e; });
     const host = $("cal-months");
     host.innerHTML = "";
     const now = new Date();
     for (let m = 0; m < calendarMonths; m++) {
-      host.appendChild(renderMonthGrid(now.getFullYear(), now.getMonth() - m, ids));
+      host.appendChild(renderMonthGrid(now.getFullYear(), now.getMonth() - m, byDay));
     }
     $("btn-cal-more").hidden = calendarMonths >= 12;
   }
-  function renderMonthGrid(year, month, ids) {
+  // その日のあらまし(タップ時のポップ用)
+  function daySummary(day, e) {
+    const [, m, d] = day.split("-").map(Number);
+    const parts = [`${m}月${d}日: ${e.starts.length}回`];
+    if (e.mood) parts.push(`${MOOD_EMOJI[e.mood] || ""}${MOOD_LABEL[e.mood] || ""}`);
+    if (e.doneMessage) parts.push(`「${e.doneMessage}」`);
+    if (e.note) parts.push("📝メモあり");
+    return parts.join(" ・ ");
+  }
+  function renderMonthGrid(year, month, byDay) {
     const first = new Date(year, month, 1); // monthは負でもDateが正規化してくれる
     const y = first.getFullYear(), mo = first.getMonth();
     const daysIn = new Date(y, mo + 1, 0).getDate();
@@ -884,9 +894,11 @@ function main() {
       const c = document.createElement("span");
       c.className = "cell";
       if (day === todayStr) c.classList.add("today");
-      if (ids.has(day)) {
+      if (byDay[day]) {
         done++;
         c.textContent = "🐤";
+        c.style.cursor = "pointer";
+        c.addEventListener("click", () => toast(daySummary(day, byDay[day])));
       } else {
         const ts = new Date(y, mo, d).getTime();
         c.classList.add(ts > Date.now() ? "future" : "miss");
