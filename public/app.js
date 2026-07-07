@@ -543,7 +543,7 @@ function main() {
       wk.textContent = `今週${chickWeek[r.uid] || 0}`;
       count.append(total, wk);
       li.append(name, chicks, count);
-      if (r.self) li.addEventListener("click", () => switchTab("history"));
+      if (r.self) li.addEventListener("click", () => switchTab("historyDetail"));
       else li.addEventListener("click", () => cycleChickColor(r.uid, chicks));
       list.appendChild(li);
     }
@@ -630,6 +630,7 @@ function main() {
     if (entries.length === 0) {
       $("history-stats").hidden = true;
       $("mood-stats").hidden = true;
+      $("history-summary").textContent = "開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です";
       renderWeeksView(new Set());
       list.innerHTML = `<li class="muted">まだ記録がありません。ホームから「筋トレ開始」を送ると、その日のひよこ🐤がここに並びます</li>`;
       return;
@@ -654,6 +655,8 @@ function main() {
     else if (best >= 2) streakText = ` ・ ベスト ${best}日連続`;
     $("history-stats").hidden = false;
     $("history-stats").textContent = `今月 ${monthCount}日` + streakText;
+    // 記録タブの導線カードにもサマリを出す
+    $("history-summary").textContent = `今月 ${monthCount}日` + streakText + " — 開始時刻やメモはこちら";
     // 気分の集計(振り返りした日ぶん)
     const moodCount = { fire: 0, good: 0, meh: 0 };
     entries.forEach((x) => { if (moodCount[x.mood] !== undefined) moodCount[x.mood]++; });
@@ -727,9 +730,10 @@ function main() {
       if (day === todayStr) c.classList.add("today");
       if (did) {
         c.textContent = "🐤";
-        // タップでその日の履歴へ
+        // タップで「日ごとの記録」のその日へジャンプ
         c.style.cursor = "pointer";
         c.addEventListener("click", () => {
+          switchTab("historyDetail"); // キャッシュがあれば即時レンダリングされる
           const target = document.querySelector(`#history-list li[data-day="${day}"]`);
           if (!target) return;
           target.scrollIntoView({ behavior: "smooth", block: "center" });
