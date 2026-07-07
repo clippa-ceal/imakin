@@ -158,11 +158,15 @@ function main() {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
   function switchTab(tab) {
-    document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+    // 友達ページは設定のサブページ扱い(ナビ上は設定をハイライト)
+    const navTab = tab === "friends" ? "settings" : tab;
+    document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
     if (tab === "history") loadHistory();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
+  $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
+  $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
 
   // ---------- ホーム:送信 ----------
   const untilInput = $("until-time");
@@ -1080,6 +1084,8 @@ function main() {
       $("requests-card").hidden = snap.empty;
       $("req-badge").hidden = snap.empty;
       $("req-badge").textContent = String(snap.size);
+      $("friends-req-hint").hidden = snap.empty;
+      $("friends-req-hint").textContent = `⚠️ 承認待ちの友達申請が ${snap.size} 件あります`;
       snap.forEach((d) => {
         const r = d.data();
         const li = document.createElement("li");

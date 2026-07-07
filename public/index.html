@@ -130,43 +130,9 @@
       </div>
     </div>
 
-    <!-- 友達 -->
-    <div id="tab-friends" class="tab-page" hidden>
-      <header class="page-head"><h2>友達</h2></header>
-
-      <div class="card">
-        <p class="field-label">あなたの友達コード</p>
-        <button id="my-code" class="friend-code" title="タップでコピー">------</button>
-        <button id="btn-share-code" class="btn ghost">📤 コードを友達に送る</button>
-        <p class="muted small">友達にこのコードを教えてもらい、下に入力すると申請が送れます</p>
-        <div class="row">
-          <input type="text" id="add-code" placeholder="例: AB3K9Z" maxlength="6" autocapitalize="characters">
-          <button id="btn-add-friend" class="btn primary">申請</button>
-        </div>
-        <p id="friend-error" class="error" hidden></p>
-      </div>
-
-      <div class="card" id="requests-card" hidden>
-        <p class="field-label">届いている申請</p>
-        <ul id="request-list" class="plain-list"></ul>
-      </div>
-
-      <div class="card">
-        <p class="field-label">友達リスト</p>
-        <p class="muted small">スイッチをオフにすると、その人からの通知だけを受け取らなくなります(相手には分かりません)</p>
-        <ul id="friend-list" class="plain-list"><li class="muted">まだ友達がいません</li></ul>
-      </div>
-    </div>
-
-    <!-- 設定 -->
-    <div id="tab-settings" class="tab-page" hidden>
-      <header class="page-head"><h2>通知の設定</h2></header>
-
-      <div class="card" id="install-card" hidden>
-        <p class="field-label">アプリとして使う</p>
-        <p class="muted small">ホーム画面に追加すると、アプリのように起動できます</p>
-        <button id="btn-install" class="btn primary">📲 ホーム画面に追加</button>
-      </div>
+    <!-- 通知 -->
+    <div id="tab-notify" class="tab-page" hidden>
+      <header class="page-head"><h2>通知</h2></header>
 
       <div class="card">
         <p class="field-label">この端末で通知を受け取る</p>
@@ -200,6 +166,55 @@
         </div>
         <p class="muted small">例: 07:00〜22:00 にすると夜中は通知が来ません。22:00〜06:00 のような夜またぎもOK。</p>
       </div>
+    </div>
+
+    <!-- 友達(設定から開くサブページ) -->
+    <div id="tab-friends" class="tab-page" hidden>
+      <header class="page-head friends-head">
+        <button id="btn-friends-back" class="chip-x back-btn" aria-label="設定に戻る">←</button>
+        <h2>友達</h2>
+      </header>
+
+      <div class="card">
+        <p class="field-label">あなたの友達コード</p>
+        <button id="my-code" class="friend-code" title="タップでコピー">------</button>
+        <button id="btn-share-code" class="btn ghost">📤 コードを友達に送る</button>
+        <p class="muted small">友達にこのコードを教えてもらい、下に入力すると申請が送れます</p>
+        <div class="row">
+          <input type="text" id="add-code" placeholder="例: AB3K9Z" maxlength="6" autocapitalize="characters">
+          <button id="btn-add-friend" class="btn primary">申請</button>
+        </div>
+        <p id="friend-error" class="error" hidden></p>
+      </div>
+
+      <div class="card" id="requests-card" hidden>
+        <p class="field-label">届いている申請</p>
+        <ul id="request-list" class="plain-list"></ul>
+      </div>
+
+      <div class="card">
+        <p class="field-label">友達リスト</p>
+        <p class="muted small">スイッチをオフにすると、その人からの通知だけを受け取らなくなります(相手には分かりません)</p>
+        <ul id="friend-list" class="plain-list"><li class="muted">まだ友達がいません</li></ul>
+      </div>
+    </div>
+
+    <!-- 設定 -->
+    <div id="tab-settings" class="tab-page" hidden>
+      <header class="page-head"><h2>設定</h2></header>
+
+      <div class="card">
+        <p class="field-label">友達</p>
+        <p id="friends-req-hint" class="muted small" hidden></p>
+        <button id="btn-open-friends" class="btn primary">👥 友達の追加・管理</button>
+        <p class="muted small">友達コードの交換、申請の承認、ミュートはこちら</p>
+      </div>
+
+      <div class="card" id="install-card" hidden>
+        <p class="field-label">アプリとして使う</p>
+        <p class="muted small">ホーム画面に追加すると、アプリのように起動できます</p>
+        <button id="btn-install" class="btn primary">📲 ホーム画面に追加</button>
+      </div>
 
       <div class="card">
         <p class="field-label">表示名</p>
@@ -220,8 +235,8 @@
       <button class="nav-btn active" data-tab="declare"><span class="nav-icon">💪</span>宣言</button>
       <button class="nav-btn" data-tab="reply"><span class="nav-icon">🔥</span>みんな<span id="reply-badge" class="badge" hidden></span></button>
       <button class="nav-btn" data-tab="history"><span class="nav-icon">🐤</span>記録</button>
-      <button class="nav-btn" data-tab="friends"><span class="nav-icon">👥</span>友達<span id="req-badge" class="badge" hidden></span></button>
-      <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span>設定</button>
+      <button class="nav-btn" data-tab="notify"><span class="nav-icon">🔔</span>通知</button>
+      <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span>設定<span id="req-badge" class="badge" hidden></span></button>
     </nav>
   </section>
 
