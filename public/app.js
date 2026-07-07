@@ -687,15 +687,26 @@ function main() {
     renderWeeksView(ids);
     const week = ["日", "月", "火", "水", "木", "金", "土"];
     const sorted = entries.slice().sort((a, b) => (a.id < b.id ? 1 : -1)); // 新しい日付順
+    const todayStr = localDayStr(Date.now());
+    let prevMonth = null;
     for (const entry of sorted) {
       const [y, mo, da] = entry.id.split("-").map(Number);
       const date = new Date(y, mo - 1, da);
+      // 月が変わったところに見出しを入れる
+      if (prevMonth !== null && mo !== prevMonth) {
+        const sep = document.createElement("li");
+        sep.className = "month-sep";
+        sep.textContent = `${mo}月`;
+        list.appendChild(sep);
+      }
+      prevMonth = mo;
       const li = document.createElement("li");
-      li.className = "history-day" + (entry.id === localDayStr(Date.now()) ? " today" : "");
+      li.className = "history-day" + (entry.id === todayStr ? " today" : "");
       li.dataset.day = entry.id;
       const head = document.createElement("div");
       head.className = "history-date";
-      head.textContent = `${mo}月${da}日(${week[date.getDay()]}) `
+      head.textContent = (entry.id === todayStr ? "きょう・" : "")
+        + `${mo}月${da}日(${week[date.getDay()]}) `
         + "🐤".repeat(Math.min(entry.starts.length, 5))
         + (entry.mood ? ` ${MOOD_EMOJI[entry.mood] || ""}` : "");
       const ul = document.createElement("ul");
@@ -704,7 +715,7 @@ function main() {
         const row = document.createElement("li");
         row.textContent =
           (st.at ? fmtTime(st.at) : "--:--") +
-          (st.untilTime ? ` → 〜${st.untilTime}` : "") +
+          (st.untilTime ? ` → ${st.untilTime}まで` : "") +
           (st.message ? ` 「${st.message}」` : "");
         ul.appendChild(row);
       }

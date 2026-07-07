@@ -216,6 +216,10 @@ input:focus, textarea:focus { border-color: var(--accent); }
   font-size: 12px; color: var(--muted); white-space: pre-wrap;
   border-left: 2px solid #313a5e; padding-left: 8px; margin-top: 2px;
 }
+.month-sep {
+  background: none !important; padding: 10px 0 0 !important;
+  font-weight: 700; font-size: 13px; color: var(--muted);
+}
 
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
