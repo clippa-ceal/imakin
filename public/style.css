@@ -125,8 +125,15 @@ input:focus { border-color: var(--accent); }
   font-size: 11px; padding: 8px 0 10px; cursor: pointer; position: relative;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
-.nav-btn.active { color: var(--accent2); }
-.nav-icon { font-size: 20px; }
+.nav-btn.active { color: var(--accent2); font-weight: 800; }
+/* 現在のタブ: 上のバー + アイコンのピル背景で明示 */
+.nav-btn.active::before {
+  content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 0 0 3px 3px;
+}
+.nav-icon { font-size: 20px; padding: 1px 12px; border-radius: 999px; transition: background .15s, transform .15s; }
+.nav-btn.active .nav-icon { background: rgba(255, 122, 60, .18); transform: scale(1.1); }
 .badge {
   position: absolute; top: 4px; right: 24%; background: var(--danger); color: #fff;
   font-size: 10px; min-width: 16px; height: 16px; border-radius: 8px;
