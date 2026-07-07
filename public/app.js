@@ -550,7 +550,7 @@ function main() {
       const total = document.createElement("span");
       total.textContent = `${n}日`;
       const wk = document.createElement("small");
-      wk.textContent = `今週${chickWeek[r.uid] || 0}`;
+      wk.textContent = `今週${chickWeek[r.uid] || 0}日`;
       count.append(total, wk);
       li.append(name, chicks, count);
       if (r.self) li.addEventListener("click", () => switchTab("historyDetail"));
