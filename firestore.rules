@@ -18,11 +18,12 @@ service cloud.firestore {
       }
 
       // 筋トレ記録(docId = YYYY-MM-DD)。記録本体はCloud Functionsのみ書き込み。
-      // 振り返り(mood)と終了時刻(endedAt)だけは本人がフィールド限定で更新できる
+      // 終了時に本人が書くフィールド(振り返り・終了時刻・ひとこと・詳細な記録)だけ更新できる
       match /sessions/{day} {
         allow read: if request.auth != null;
         allow update: if request.auth != null && request.auth.uid == uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mood', 'moodAt', 'endedAt']);
+          && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['mood', 'moodAt', 'endedAt', 'doneMessage', 'note']);
       }
     }
 

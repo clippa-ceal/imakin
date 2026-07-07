@@ -263,14 +263,15 @@
         <button class="mood-btn" data-mood="good">😊<span>ぼちぼち</span></button>
         <button class="mood-btn" data-mood="meh">🫠<span>さぼり気味</span></button>
       </div>
-      <div id="finish-send-area">
-        <p id="finish-label" class="field-label">「終わったよ」を送る?(20文字まで)</p>
+      <div class="field">
+        <span id="finish-label" class="field-label">ひとこと(20文字まで)</span>
         <input type="text" id="finish-message" maxlength="20" placeholder="やり切った!">
       </div>
-      <div class="row">
-        <button id="btn-finish-send" class="btn primary">🎉 送って終了</button>
-        <button id="btn-finish-skip" class="btn ghost">送らずに終了</button>
+      <div class="field">
+        <span class="field-label">詳細な記録(任意・200文字まで)</span>
+        <textarea id="finish-note" maxlength="200" rows="3" placeholder="例: ベンチプレス 60kg 10回×3、スクワット 20回×3"></textarea>
       </div>
+      <button id="btn-finish-done" class="btn primary">💪 終了する</button>
     </div>
     <button id="btn-workout-done" class="btn primary big workout-done">💪 筋トレ終了</button>
   </div>

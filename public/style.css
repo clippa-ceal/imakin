@@ -49,12 +49,13 @@ code { background: var(--card2); padding: 2px 6px; border-radius: 6px; font-size
 .field { display: flex; flex-direction: column; gap: 6px; position: relative; }
 .field-label { font-size: 13px; color: var(--muted); font-weight: 600; }
 
-input[type="text"], input[type="time"] {
+input[type="text"], input[type="time"], textarea {
   background: var(--card2); border: 1px solid #313a5e; border-radius: 10px;
   color: var(--text); font-size: 16px; padding: 12px; width: 100%;
   outline: none;
 }
-input:focus { border-color: var(--accent); }
+textarea { font-family: inherit; resize: vertical; }
+input:focus, textarea:focus { border-color: var(--accent); }
 .counter { position: absolute; right: 8px; bottom: -20px; font-size: 11px; color: var(--muted); }
 
 .btn {
@@ -203,6 +204,10 @@ input:focus { border-color: var(--accent); }
 .history-date { font-weight: 700; font-size: 14px; }
 .history-starts { list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .history-starts li { background: none; padding: 0; font-size: 13px; color: var(--muted); }
+.history-note {
+  font-size: 12px; color: var(--muted); white-space: pre-wrap;
+  border-left: 2px solid #313a5e; padding-left: 8px; margin-top: 2px;
+}
 
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
