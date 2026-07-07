@@ -114,22 +114,35 @@
         <p class="muted small">筋トレした日の数だけひよこが並びます。7日でにわとり🐔に成長。友達の行はタップで色を変えられます</p>
       </div>
       <div class="card">
-        <p class="field-label">📖 日ごとの記録</p>
+        <p class="field-label">📖 くわしく見る</p>
         <p id="history-summary" class="muted small">開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です</p>
         <button id="btn-open-history" class="btn primary">日ごとの記録を見る</button>
+        <button id="btn-open-calendar" class="btn ghost">🗓 カレンダーを見る</button>
       </div>
     </div>
 
     <!-- 日ごとの記録(記録から開くサブページ) -->
     <div id="tab-historyDetail" class="tab-page" hidden>
       <header class="page-head friends-head">
-        <button id="btn-history-back" class="chip-x back-btn" aria-label="記録に戻る">←</button>
+        <button class="chip-x back-btn history-back" aria-label="記録に戻る">←</button>
         <h2>日ごとの記録</h2>
       </header>
       <div class="card">
         <p id="history-stats" class="field-label" hidden></p>
         <p id="mood-stats" class="muted small" hidden></p>
         <ul id="history-list" class="plain-list"></ul>
+      </div>
+    </div>
+
+    <!-- カレンダー(記録から開くサブページ) -->
+    <div id="tab-calendar" class="tab-page" hidden>
+      <header class="page-head friends-head">
+        <button class="chip-x back-btn history-back" aria-label="記録に戻る">←</button>
+        <h2>カレンダー</h2>
+      </header>
+      <div class="card">
+        <div id="cal-months"><p class="muted">読み込み中…</p></div>
+        <button id="btn-cal-more" class="btn ghost" hidden>さらに過去を見る</button>
       </div>
     </div>
 

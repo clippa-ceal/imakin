@@ -157,18 +157,22 @@ function main() {
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
+  // 記録のサブページ(ナビ上では「記録」をハイライトし、←で記録に戻る)
+  const HISTORY_SUBPAGES = ["historyDetail", "calendar"];
   function switchTab(tab) {
-    // サブページはナビ上では親タブをハイライト(友達→設定、日ごとの記録→記録)
-    const navTab = tab === "friends" ? "settings" : tab === "historyDetail" ? "history" : tab;
+    const navTab = tab === "friends" ? "settings" : HISTORY_SUBPAGES.includes(tab) ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
     if (tab === "history" || tab === "historyDetail") loadHistory();
+    if (tab === "calendar") renderCalendarPage();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
   $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
   $("btn-open-history").addEventListener("click", () => switchTab("historyDetail"));
-  $("btn-history-back").addEventListener("click", () => switchTab("history"));
+  $("btn-open-calendar").addEventListener("click", () => switchTab("calendar"));
+  document.querySelectorAll(".history-back").forEach((b) =>
+    b.addEventListener("click", () => switchTab("history")));
 
   // ---------- ホーム:送信 ----------
   const untilInput = $("until-time");
@@ -797,6 +801,104 @@ function main() {
     if (best.length) {
       $("dow-hint").textContent = `よく筋トレしている曜日: ${best.map((x) => `${names[x.i]}曜`).join("・")}`;
     }
+  }
+
+  // ---------- 長期データ(過去1年の記録。カレンダーなどのサブページ用) ----------
+  const ALL_CACHE_KEY = "imakinAllCache";
+  let allEntries = null;
+  let allFetchedAt = 0;
+  async function loadAllEntries() {
+    if (!me) return [];
+    // 先にキャッシュを返せる状態にしつつ、5分以上経っていたら取り直す
+    if (!allEntries) {
+      try {
+        const c = JSON.parse(localStorage.getItem(ALL_CACHE_KEY));
+        if (Array.isArray(c)) allEntries = c;
+      } catch { /* キャッシュ破損時は無視 */ }
+    }
+    if (allEntries && Date.now() - allFetchedAt < 5 * 60000) return allEntries;
+    try {
+      const snap = await getDocs(query(
+        collection(db, "users", me.uid, "sessions"),
+        where(documentId(), ">=", localDayStr(Date.now() - 365 * 86400000)),
+      ));
+      allEntries = snap.docs.map((d) => {
+        const s = d.data();
+        return {
+          id: d.id,
+          starts: Array.isArray(s.starts) && s.starts.length
+            ? s.starts
+            : [{ at: s.lastStartAt, untilTime: s.untilTime || "", message: "" }],
+          mood: s.mood || "",
+          doneMessage: s.doneMessage || "",
+          note: s.note || "",
+        };
+      });
+      allFetchedAt = Date.now();
+      localStorage.setItem(ALL_CACHE_KEY, JSON.stringify(allEntries));
+    } catch (e) { console.error(e); }
+    return allEntries || [];
+  }
+
+  // ---------- カレンダーページ(月別・過去に遡れる) ----------
+  let calendarMonths = 3;
+  $("btn-cal-more").addEventListener("click", () => {
+    calendarMonths = Math.min(calendarMonths + 3, 12);
+    renderCalendarPage();
+  });
+  async function renderCalendarPage() {
+    const entries = await loadAllEntries();
+    const ids = new Set(entries.map((e) => e.id));
+    const host = $("cal-months");
+    host.innerHTML = "";
+    const now = new Date();
+    for (let m = 0; m < calendarMonths; m++) {
+      host.appendChild(renderMonthGrid(now.getFullYear(), now.getMonth() - m, ids));
+    }
+    $("btn-cal-more").hidden = calendarMonths >= 12;
+  }
+  function renderMonthGrid(year, month, ids) {
+    const first = new Date(year, month, 1); // monthは負でもDateが正規化してくれる
+    const y = first.getFullYear(), mo = first.getMonth();
+    const daysIn = new Date(y, mo + 1, 0).getDate();
+    const todayStr = localDayStr(Date.now());
+    const wrap = document.createElement("div");
+    wrap.className = "cal-month";
+    const grid = document.createElement("div");
+    grid.className = "dot-cal";
+    ["月", "火", "水", "木", "金", "土", "日"].forEach((w) => {
+      const h = document.createElement("span");
+      h.className = "dow";
+      h.textContent = w;
+      grid.appendChild(h);
+    });
+    const lead = (first.getDay() + 6) % 7; // 月曜はじまり
+    for (let i = 0; i < lead; i++) {
+      const sp = document.createElement("span");
+      sp.className = "cell";
+      grid.appendChild(sp);
+    }
+    let done = 0;
+    for (let d = 1; d <= daysIn; d++) {
+      const day = `${y}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const c = document.createElement("span");
+      c.className = "cell";
+      if (day === todayStr) c.classList.add("today");
+      if (ids.has(day)) {
+        done++;
+        c.textContent = "🐤";
+      } else {
+        const ts = new Date(y, mo, d).getTime();
+        c.classList.add(ts > Date.now() ? "future" : "miss");
+        c.textContent = "・";
+      }
+      grid.appendChild(c);
+    }
+    const title = document.createElement("p");
+    title.className = "cal-title";
+    title.textContent = `${y}年${mo + 1}月 — ${done}日`;
+    wrap.append(title, grid);
+    return wrap;
   }
 
   // ---------- 筋トレ中の画面(時計 + フキダシ付箋) ----------
