@@ -264,14 +264,21 @@
         <button class="mood-btn" data-mood="meh">🫠<span>さぼり気味</span></button>
       </div>
       <div class="field">
-        <span id="finish-label" class="field-label">ひとこと(20文字まで)</span>
+        <span class="field-label">ひとこと(20文字まで・記録に残ります)</span>
         <input type="text" id="finish-message" maxlength="20" placeholder="やり切った!">
       </div>
       <div class="field">
         <span class="field-label">詳細な記録(任意・200文字まで)</span>
         <textarea id="finish-note" maxlength="200" rows="3" placeholder="例: ベンチプレス 60kg 10回×3、スクワット 20回×3"></textarea>
       </div>
-      <button id="btn-finish-done" class="btn primary">💪 終了する</button>
+      <label class="send-check" id="finish-send-row" hidden>
+        <input type="checkbox" id="finish-send-check" checked>
+        <span id="finish-send-label">反応をくれた人に「終わったよ」を送る</span>
+      </label>
+      <div class="row">
+        <button id="btn-finish-done" class="btn primary">💪 終了する</button>
+        <button id="btn-finish-back" class="btn ghost">筋トレに戻る</button>
+      </div>
     </div>
     <button id="btn-workout-done" class="btn primary big workout-done">💪 筋トレ終了</button>
   </div>

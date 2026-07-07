@@ -56,6 +56,11 @@ input[type="text"], input[type="time"], textarea {
 }
 textarea { font-family: inherit; resize: vertical; }
 input:focus, textarea:focus { border-color: var(--accent); }
+.send-check {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--muted); cursor: pointer;
+}
+.send-check input { accent-color: var(--accent); width: 18px; height: 18px; }
 .counter { position: absolute; right: 8px; bottom: -20px; font-size: 11px; color: var(--muted); }
 
 .btn {

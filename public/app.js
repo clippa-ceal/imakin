@@ -101,7 +101,7 @@ function main() {
     unsubscribers.forEach((u) => u());
     unsubscribers = [];
     me = user;
-    if (!user) { exitWorkout(true); showScreen("auth"); return; }
+    if (!user) { exitWorkout(); showScreen("auth"); return; }
     await ensureUserDocs(user);
     showScreen("main");
     $("home-greeting").textContent = `${myProfile.name} さん、今日もやりますか`;
@@ -215,6 +215,11 @@ function main() {
     const untilTime = untilInput.value;
     const message = $("message").value.trim();
     if (!untilTime) { toast("終了時刻を入れてください"); return; }
+    // 現在時刻以前を選ぶと翌日扱い(24時間セッション)になってしまうので入力エラーにする
+    if (untilToTs(untilTime) - Date.now() > 12 * 3600000) {
+      toast("終了時刻が過去になっています。「+5分」などで未来の時刻にしてください");
+      return;
+    }
     if (message.length > 20) { toast("メッセージは20文字までです"); return; }
     btn.disabled = true;
     try {
@@ -398,6 +403,15 @@ function main() {
     renderReplyList();
     updateGreeting();
   }
+
+  // 「みんな」タブを開いている間は自動で最新化する
+  // (友達が早めに終了したときも、開き直さなくても消えるように)
+  const replyTabVisible = () =>
+    me && document.visibilityState === "visible" && !$("tab-reply").hidden;
+  setInterval(() => { if (replyTabVisible()) refreshChicks(); }, 60000);
+  document.addEventListener("visibilitychange", () => {
+    if (replyTabVisible()) refreshChicks();
+  });
 
   // 返信タブ:いま筋トレ中の友達の宣言を一覧表示
   function renderReplyList() {
@@ -805,8 +819,7 @@ function main() {
       "あと " + (hh > 0 ? `${hh}:${String(mm).padStart(2, "0")}` : String(mm)) + `:${String(ss).padStart(2, "0")}`;
   }
 
-  function exitWorkout(force = false) {
-    if (!force && workout?.bubbles.length && !confirm("筋トレ中の画面を閉じますか?貼られたフキダシは消えます")) return;
+  function exitWorkout() {
     workout = null;
     localStorage.removeItem(WORKOUT_KEY);
     clearInterval(workoutTimer);
@@ -823,10 +836,11 @@ function main() {
   function restoreWorkout() {
     try {
       const s = JSON.parse(localStorage.getItem(WORKOUT_KEY));
-      // 終了予定から60分以内なら復元する(時間切れ直後にリロードしても
-      // 振り返り・終了報告のチャンスを失わない)
-      if (s && s.endTs > Date.now() - 60 * 60000) enterWorkout(s);
-      else localStorage.removeItem(WORKOUT_KEY);
+      if (s && s.endTs > Date.now()) { enterWorkout(s); return; }
+      // 終了予定を過ぎていても6時間以内なら、振り返りパネルを開いた状態で復元する
+      // (時間切れ後にアプリを開き直しても記録のチャンスを失わない)
+      if (s && Date.now() - s.endTs < 6 * 3600000) { enterWorkout(s); openFinishPanel(); return; }
+      localStorage.removeItem(WORKOUT_KEY);
     } catch { localStorage.removeItem(WORKOUT_KEY); }
   }
 
@@ -979,11 +993,8 @@ function main() {
     if (workout && document.visibilityState === "visible") acquireWakeLock();
   });
 
-  $("workout-exit").addEventListener("click", () => {
-    const w = workout;
-    exitWorkout();
-    if (w && !workout) saveFinish(w); // ×で閉じるのも「終了」扱い(confirmでやめたら書かない)
-  });
+  // ×も終了ボタンも同じ振り返りパネルを開く(終了経路は1本。「筋トレに戻る」でキャンセル可)
+  $("workout-exit").addEventListener("click", () => openFinishPanel());
 
   // ---------- 筋トレ終了(「終わったよ」メッセージ) ----------
   // 終了報告は、セッション中に反応(フキダシ・スタンプ)をくれた相手にだけ送る
@@ -1000,47 +1011,65 @@ function main() {
     });
   });
   // 終了をセッション記録に書く(振り返り・ひとこと・詳細な記録も入力があれば一緒に)。
-  // 友達側の「いま筋トレ中」判定は endedAt >= lastStartAt で「終了済み」とみなす
-  function saveFinish(w = workout) {
+  // 友達側の「いま筋トレ中」判定は endedAt >= lastStartAt で「終了済み」とみなす。
+  // 同じ日に2回目の終了をしても、ひとこと・詳細な記録は上書きせず追記する
+  async function saveFinish(w = workout) {
     if (!w || !me) return;
-    const day = localDayStr(w.startTs || Date.now());
-    const data = { endedAt: Date.now() };
-    if (finishMood) { data.mood = finishMood; data.moodAt = Date.now(); }
+    // DOMの値はawaitより前に読む(exitWorkout後や次のセッション開始でリセットされるため)
     const doneMessage = $("finish-message").value.trim();
     const note = $("finish-note").value.trim();
+    const day = localDayStr(w.startTs || Date.now());
+    const ref = doc(db, "users", me.uid, "sessions", day);
+    const data = { endedAt: Date.now() };
+    if (finishMood) { data.mood = finishMood; data.moodAt = Date.now(); }
     if (doneMessage) data.doneMessage = doneMessage;
     if (note) data.note = note;
-    updateDoc(doc(db, "users", me.uid, "sessions", day), data)
-      .catch(console.error); // 記録がまだ無い日などは黙って諦める
+    if (doneMessage || note) {
+      try {
+        const cur = (await getDoc(ref)).data() || {};
+        if (doneMessage && cur.doneMessage) data.doneMessage = `${cur.doneMessage} / ${doneMessage}`;
+        if (note && cur.note) data.note = `${cur.note}\n${note}`;
+      } catch { /* 読めなければそのまま書く(従来の上書き挙動) */ }
+    }
+    try {
+      await updateDoc(ref, data);
+    } catch (e) {
+      console.error(e);
+      toast("記録の保存に失敗しました");
+    }
   }
 
-  $("btn-workout-done").addEventListener("click", () => {
+  function openFinishPanel() {
+    if (!workout) return;
     const reacted = workoutReactedUids();
     finishMood = null;
     document.querySelectorAll(".mood-btn").forEach((b) => b.classList.remove("active"));
-    // ひとことは、反応をくれた人がいればその人たちに届く。いなくても自分の記録に残る
-    $("finish-label").textContent = reacted.length > 0
-      ? `ひとこと(反応をくれた${reacted.length}人に届きます・20文字まで)`
-      : "ひとこと(自分の記録に残ります・20文字まで)";
+    // 「終わったよ」送信は反応をくれた人がいるときだけ選べる(既定ON)
+    $("finish-send-row").hidden = reacted.length === 0;
+    $("finish-send-check").checked = true;
+    $("finish-send-label").textContent = `反応をくれた${reacted.length}人に「終わったよ」を送る`;
     $("finish-panel").hidden = false;
-  });
+  }
+  $("btn-workout-done").addEventListener("click", openFinishPanel);
+  $("btn-finish-back").addEventListener("click", () => { $("finish-panel").hidden = true; });
   $("btn-finish-done").addEventListener("click", async () => {
     const btn = $("btn-finish-done");
     const reacted = workoutReactedUids();
     const message = $("finish-message").value.trim();
     btn.disabled = true;
     try {
-      if (reacted.length > 0) {
+      if (reacted.length > 0 && $("finish-send-check").checked) {
         const send = httpsCallable(functions, "sendWorkout");
         await send({ kind: "done", message, to: reacted });
         toast("筋トレ終了を知らせました🎉");
       }
-      saveFinish();
+      saveFinish(); // 非同期。失敗時は中でトースト表示
       $("finish-panel").hidden = true;
-      exitWorkout(true);
+      exitWorkout();
     } catch (e) {
       console.error(e);
-      toast("送信に失敗しました: " + (e.message || e.code)); // 終了せず残すのでやり直せる
+      // 終了せずパネルを残すのでやり直せる。オフラインでも送信チェックを外せば終了できる
+      toast("送信に失敗しました。電波が無いときはチェックを外すと送らずに終了できます");
     } finally {
       btn.disabled = false;
     }
