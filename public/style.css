@@ -201,7 +201,10 @@ input:focus, textarea:focus { border-color: var(--accent); }
 }
 .dot-cal .cell.miss { color: #39406a; font-size: 12px; }
 .dot-cal .cell.future { opacity: .3; font-size: 12px; color: #39406a; }
-.dot-cal .cell.today { outline: 1px solid var(--accent); }
+.dot-cal .cell.today {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+  border-radius: 8px; background: rgba(255, 179, 71, .12);
+}
 
 .history-day.today { border: 1px solid #5a4630; }
 .history-day.flash { outline: 2px solid var(--accent); transition: outline .2s; }
