@@ -31,11 +31,16 @@ messaging.onBackgroundMessage((payload) => {
     title = `💪 ${name} が筋トレ開始!`;
     body = `${d.untilTime || ""}まで` + (d.message ? `「${d.message}」` : "");
   }
+  // タップで「一緒に筋トレ」モードに入るのは開始通知だけ。
+  // 終了・スタンプ通知は(相手はもう筋トレしていないので)アプリを開くだけ
+  const url = kind === "start"
+    ? `/?replyTo=${d.senderUid || ""}&name=${encodeURIComponent(d.senderName || "")}`
+    : "/";
   self.registration.showNotification(title, {
     body,
     icon: "/icon-192.png",
     tag: kind + "-" + (d.senderUid || ""),
-    data: { url: `/?replyTo=${d.senderUid || ""}&name=${encodeURIComponent(d.senderName || "")}` },
+    data: { url },
   });
 });
 

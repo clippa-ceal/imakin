@@ -593,6 +593,8 @@ function main() {
             ? s.starts
             : [{ at: s.lastStartAt, untilTime: s.untilTime || "", message: "" }],
           mood: s.mood || "",
+          doneMessage: s.doneMessage || "",
+          note: s.note || "",
         };
       });
       localStorage.setItem(HIST_CACHE_KEY, JSON.stringify(entries));
@@ -668,7 +670,18 @@ function main() {
           (st.message ? ` 「${st.message}」` : "");
         ul.appendChild(row);
       }
+      if (entry.doneMessage) {
+        const row = document.createElement("li");
+        row.textContent = `🎉 「${entry.doneMessage}」`;
+        ul.appendChild(row);
+      }
       li.append(head, ul);
+      if (entry.note) {
+        const note = document.createElement("p");
+        note.className = "history-note";
+        note.textContent = entry.note;
+        li.appendChild(note);
+      }
       list.appendChild(li);
     }
   }
@@ -755,6 +768,7 @@ function main() {
     $("workout-msg").hidden = !state.message;
     $("finish-panel").hidden = true;
     $("finish-message").value = "";
+    $("finish-note").value = "";
     finishMood = null; // 前回セッションの振り返り選択を持ち越さない
     $("stamp-picker").hidden = true;
     stampTarget = null;
@@ -985,13 +999,17 @@ function main() {
       document.querySelectorAll(".mood-btn").forEach((b) => b.classList.toggle("active", b === btn));
     });
   });
-  // 終了をセッション記録に書く(振り返りが選ばれていれば一緒に)。
+  // 終了をセッション記録に書く(振り返り・ひとこと・詳細な記録も入力があれば一緒に)。
   // 友達側の「いま筋トレ中」判定は endedAt >= lastStartAt で「終了済み」とみなす
   function saveFinish(w = workout) {
     if (!w || !me) return;
     const day = localDayStr(w.startTs || Date.now());
     const data = { endedAt: Date.now() };
     if (finishMood) { data.mood = finishMood; data.moodAt = Date.now(); }
+    const doneMessage = $("finish-message").value.trim();
+    const note = $("finish-note").value.trim();
+    if (doneMessage) data.doneMessage = doneMessage;
+    if (note) data.note = note;
     updateDoc(doc(db, "users", me.uid, "sessions", day), data)
       .catch(console.error); // 記録がまだ無い日などは黙って諦める
   }
@@ -1000,35 +1018,29 @@ function main() {
     const reacted = workoutReactedUids();
     finishMood = null;
     document.querySelectorAll(".mood-btn").forEach((b) => b.classList.remove("active"));
-    // 「終わったよ」送信は反応をくれた人がいるときだけ
-    $("finish-send-area").hidden = reacted.length === 0;
-    $("btn-finish-send").hidden = reacted.length === 0;
-    $("btn-finish-skip").textContent = reacted.length === 0 ? "終了する" : "送らずに終了";
-    if (reacted.length > 0) {
-      $("finish-label").textContent =
-        `反応をくれた${reacted.length}人に「終わったよ」を送る?(20文字まで)`;
-    }
+    // ひとことは、反応をくれた人がいればその人たちに届く。いなくても自分の記録に残る
+    $("finish-label").textContent = reacted.length > 0
+      ? `ひとこと(反応をくれた${reacted.length}人に届きます・20文字まで)`
+      : "ひとこと(自分の記録に残ります・20文字まで)";
     $("finish-panel").hidden = false;
   });
-  $("btn-finish-skip").addEventListener("click", () => {
-    saveFinish();
-    $("finish-panel").hidden = true;
-    exitWorkout(true);
-  });
-  $("btn-finish-send").addEventListener("click", async () => {
-    const btn = $("btn-finish-send");
+  $("btn-finish-done").addEventListener("click", async () => {
+    const btn = $("btn-finish-done");
+    const reacted = workoutReactedUids();
     const message = $("finish-message").value.trim();
     btn.disabled = true;
     try {
-      const send = httpsCallable(functions, "sendWorkout");
-      await send({ kind: "done", message, to: workoutReactedUids() });
-      toast("筋トレ終了を知らせました🎉");
+      if (reacted.length > 0) {
+        const send = httpsCallable(functions, "sendWorkout");
+        await send({ kind: "done", message, to: reacted });
+        toast("筋トレ終了を知らせました🎉");
+      }
       saveFinish();
       $("finish-panel").hidden = true;
       exitWorkout(true);
     } catch (e) {
       console.error(e);
-      toast("送信に失敗しました: " + (e.message || e.code));
+      toast("送信に失敗しました: " + (e.message || e.code)); // 終了せず残すのでやり直せる
     } finally {
       btn.disabled = false;
     }
