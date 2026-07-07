@@ -103,6 +103,7 @@
         <p class="field-label">🐤 ひよこ(直近14日)</p>
         <p id="week-progress" class="week-progress" hidden></p>
         <ul id="chick-list" class="plain-list"></ul>
+        <button id="btn-more-chicks" class="btn ghost" hidden></button>
         <p class="muted small">筋トレした日にひよこが増え、7日以上でにわとりに🐔(友達の行はタップで色変え)</p>
       </div>
       <div class="card">
@@ -111,6 +112,19 @@
         <div id="dot-cal" class="dot-cal"></div>
         <p id="dow-hint" class="muted small" hidden></p>
       </div>
+      <div class="card">
+        <p class="field-label">📖 日ごとの記録</p>
+        <p id="history-summary" class="muted small">開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です</p>
+        <button id="btn-open-history" class="btn primary">日ごとの記録を見る</button>
+      </div>
+    </div>
+
+    <!-- 日ごとの記録(記録から開くサブページ) -->
+    <div id="tab-historyDetail" class="tab-page" hidden>
+      <header class="page-head friends-head">
+        <button id="btn-history-back" class="chip-x back-btn" aria-label="記録に戻る">←</button>
+        <h2>日ごとの記録</h2>
+      </header>
       <div class="card">
         <p id="history-stats" class="field-label" hidden></p>
         <p id="mood-stats" class="muted small" hidden></p>

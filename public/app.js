@@ -158,15 +158,17 @@ function main() {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
   function switchTab(tab) {
-    // 友達ページは設定のサブページ扱い(ナビ上は設定をハイライト)
-    const navTab = tab === "friends" ? "settings" : tab;
+    // サブページはナビ上では親タブをハイライト(友達→設定、日ごとの記録→記録)
+    const navTab = tab === "friends" ? "settings" : tab === "historyDetail" ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
-    if (tab === "history") loadHistory();
+    if (tab === "history" || tab === "historyDetail") loadHistory();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
   $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
+  $("btn-open-history").addEventListener("click", () => switchTab("historyDetail"));
+  $("btn-history-back").addEventListener("click", () => switchTab("history"));
 
   // ---------- ホーム:送信 ----------
   const untilInput = $("until-time");
