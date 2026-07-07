@@ -472,6 +472,13 @@ function main() {
     }
   }
 
+  // 友達が増えても一覧が伸びすぎないように、6人目からは折りたたむ
+  let chicksExpanded = false;
+  $("btn-more-chicks").addEventListener("click", () => {
+    chicksExpanded = !chicksExpanded;
+    renderChicks();
+  });
+
   function renderChicks() {
     const list = $("chick-list");
     if (!me) return;
@@ -492,11 +499,14 @@ function main() {
       }
     }
     list.innerHTML = "";
-    const rows = [
-      { uid: me.uid, name: "あなた", self: true },
-      ...chickFriendUids.map((u) => ({ uid: u, name: friendProfiles[u]?.name || "友達" })),
-    ];
-    for (const r of rows) {
+    // 友達はよく続いている順(直近14日の日数が多い順)。自分は常に先頭
+    const friends = chickFriendUids
+      .map((u) => ({ uid: u, name: friendProfiles[u]?.name || "友達" }))
+      .sort((a, b) => (chickCounts[b.uid] || 0) - (chickCounts[a.uid] || 0));
+    const rows = [{ uid: me.uid, name: "あなた", self: true }, ...friends];
+    const COLLAPSE_AT = 6; // 自分+友達5人までは全員表示
+    const visible = !chicksExpanded && rows.length > COLLAPSE_AT ? rows.slice(0, COLLAPSE_AT) : rows;
+    for (const r of visible) {
       const n = Math.min(chickCounts[r.uid] || 0, 14);
       const li = document.createElement("li");
       li.className = "chick-row" + (r.self ? " self" : "");
@@ -547,6 +557,15 @@ function main() {
       else li.addEventListener("click", () => cycleChickColor(r.uid, chicks));
       list.appendChild(li);
     }
+    if (friends.length === 0) {
+      const li = document.createElement("li");
+      li.className = "muted";
+      li.textContent = "友達を追加すると、ここに友達のひよこも並びます";
+      list.appendChild(li);
+    }
+    const moreBtn = $("btn-more-chicks");
+    moreBtn.hidden = rows.length <= COLLAPSE_AT;
+    moreBtn.textContent = chicksExpanded ? "たたむ" : `他の${rows.length - COLLAPSE_AT}人も見る`;
   }
 
   function cycleChickColor(uid, chicksEl) {
