@@ -221,6 +221,16 @@ input:focus, textarea:focus { border-color: var(--accent); }
   font-weight: 700; font-size: 13px; color: var(--muted);
 }
 
+/* カレンダーページ(月別) */
+.cal-month { padding: 6px 0 14px; }
+.cal-month + .cal-month { border-top: 1px solid #262d4d; padding-top: 14px; }
+.cal-title {
+  font-size: 14px; font-weight: 700; margin-bottom: 8px;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.cal-title small { color: var(--muted); font-weight: 400; }
+.cal-month .dot-cal { gap: 6px 4px; }
+
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
 .chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }

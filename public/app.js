@@ -896,7 +896,11 @@ function main() {
     }
     const title = document.createElement("p");
     title.className = "cal-title";
-    title.textContent = `${y}年${mo + 1}月 — ${done}日`;
+    const tName = document.createElement("span");
+    tName.textContent = `${y}年${mo + 1}月`;
+    const tCount = document.createElement("small");
+    tCount.textContent = done > 0 ? `🐤 ${done}日` : "0日";
+    title.append(tName, tCount);
     wrap.append(title, grid);
     return wrap;
   }
