@@ -206,10 +206,10 @@ input:focus, textarea:focus { border-color: var(--accent); }
   border-radius: 8px; background: rgba(255, 179, 71, .12);
 }
 
-.history-day.today { border: 1px solid #5a4630; }
+.history-day.today { border: 1px solid var(--accent); background: rgba(255, 179, 71, .06); }
 .history-day.flash { outline: 2px solid var(--accent); transition: outline .2s; }
-.history-day { flex-direction: column; align-items: stretch; gap: 4px; }
-.history-date { font-weight: 700; font-size: 14px; }
+.history-day { flex-direction: column; align-items: stretch; gap: 6px; }
+.history-date { font-weight: 700; font-size: 15px; }
 .history-starts { list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .history-starts li { background: none; padding: 0; font-size: 13px; color: var(--muted); }
 .history-note {
