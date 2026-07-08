@@ -240,6 +240,15 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .dot-cal .cell.m-good::after { background: #7bd47e; }
 .dot-cal .cell.m-meh::after { background: #9aa3c7; }
 
+/* 統計ページ */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-tile {
+  background: var(--card2); border-radius: 12px; padding: 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.stat-value { font-size: 22px; font-weight: 800; color: var(--accent2); }
+.stat-label { font-size: 12px; color: var(--muted); }
+
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
 .chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }
