@@ -163,6 +163,7 @@ function main() {
     const navTab = tab === "friends" ? "settings" : HISTORY_SUBPAGES.includes(tab) ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
+    window.scrollTo(0, 0); // 前のページのスクロール位置を持ち越さない
     if (tab === "history" || tab === "historyDetail") loadHistory();
     if (tab === "calendar") renderCalendarPage();
     if (tab === "stats") renderStatsPage();
