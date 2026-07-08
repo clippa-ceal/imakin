@@ -157,18 +157,26 @@ function main() {
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
+  // 記録のサブページ(ナビ上では「記録」をハイライトし、←で記録に戻る)
+  const HISTORY_SUBPAGES = ["historyDetail", "calendar", "stats", "moods", "notes"];
   function switchTab(tab) {
-    // サブページはナビ上では親タブをハイライト(友達→設定、日ごとの記録→記録)
-    const navTab = tab === "friends" ? "settings" : tab === "historyDetail" ? "history" : tab;
+    const navTab = tab === "friends" ? "settings" : HISTORY_SUBPAGES.includes(tab) ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
+    window.scrollTo(0, 0); // 前のページのスクロール位置を持ち越さない
     if (tab === "history" || tab === "historyDetail") loadHistory();
+    if (tab === "calendar") renderCalendarPage();
+    if (tab === "stats") renderStatsPage();
+    if (tab === "moods") renderMoodsPage();
+    if (tab === "notes") renderNotesPage();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
   $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
-  $("btn-open-history").addEventListener("click", () => switchTab("historyDetail"));
-  $("btn-history-back").addEventListener("click", () => switchTab("history"));
+  document.querySelectorAll(".menu-item[data-page]").forEach((b) =>
+    b.addEventListener("click", () => switchTab(b.dataset.page)));
+  document.querySelectorAll(".history-back").forEach((b) =>
+    b.addEventListener("click", () => switchTab("history")));
 
   // ---------- ホーム:送信 ----------
   const untilInput = $("until-time");
@@ -607,6 +615,12 @@ function main() {
   };
 
   const HIST_CACHE_KEY = "imakinHistCache";
+  // 日ごとの記録の表示範囲(「さらに過去を見る」で60日ずつ、最大1年)
+  let histDays = 60;
+  $("btn-hist-more").addEventListener("click", () => {
+    histDays = Math.min(histDays + 60, 365);
+    loadHistory();
+  });
 
   async function loadHistory() {
     if (!me) return;
@@ -620,7 +634,7 @@ function main() {
     try {
       const snap = await getDocs(query(
         collection(db, "users", me.uid, "sessions"),
-        where(documentId(), ">=", localDayStr(Date.now() - 59 * 86400000)),
+        where(documentId(), ">=", localDayStr(Date.now() - (histDays - 1) * 86400000)),
       ));
       const entries = snap.docs.map((d) => {
         const s = d.data();
@@ -635,6 +649,8 @@ function main() {
         };
       });
       localStorage.setItem(HIST_CACHE_KEY, JSON.stringify(entries));
+      $("btn-hist-more").hidden = histDays >= 365;
+      $("btn-hist-more").textContent = `さらに過去を見る(いま${histDays}日分・最大1年)`;
       renderHistory(entries);
     } catch (e) {
       console.error(e);
@@ -797,6 +813,337 @@ function main() {
     if (best.length) {
       $("dow-hint").textContent = `よく筋トレしている曜日: ${best.map((x) => `${names[x.i]}曜`).join("・")}`;
     }
+  }
+
+  // ---------- 長期データ(過去1年の記録。カレンダーなどのサブページ用) ----------
+  const ALL_CACHE_KEY = "imakinAllCache";
+  let allEntries = null;
+  let allFetchedAt = 0;
+  async function loadAllEntries() {
+    if (!me) return [];
+    // 先にキャッシュを返せる状態にしつつ、5分以上経っていたら取り直す
+    if (!allEntries) {
+      try {
+        const c = JSON.parse(localStorage.getItem(ALL_CACHE_KEY));
+        if (Array.isArray(c)) allEntries = c;
+      } catch { /* キャッシュ破損時は無視 */ }
+    }
+    if (allEntries && Date.now() - allFetchedAt < 5 * 60000) return allEntries;
+    try {
+      const snap = await getDocs(query(
+        collection(db, "users", me.uid, "sessions"),
+        where(documentId(), ">=", localDayStr(Date.now() - 365 * 86400000)),
+      ));
+      allEntries = snap.docs.map((d) => {
+        const s = d.data();
+        return {
+          id: d.id,
+          starts: Array.isArray(s.starts) && s.starts.length
+            ? s.starts
+            : [{ at: s.lastStartAt, untilTime: s.untilTime || "", message: "" }],
+          mood: s.mood || "",
+          doneMessage: s.doneMessage || "",
+          note: s.note || "",
+        };
+      });
+      allFetchedAt = Date.now();
+      localStorage.setItem(ALL_CACHE_KEY, JSON.stringify(allEntries));
+    } catch (e) { console.error(e); }
+    return allEntries || [];
+  }
+
+  // ---------- 統計ページ ----------
+  async function renderStatsPage() {
+    const entries = await loadAllEntries();
+    const ids = new Set(entries.map((e) => e.id));
+    const totalDays = entries.length;
+    const totalSessions = entries.reduce((s, e) => s + e.starts.length, 0);
+    const monthPrefix = localDayStr(Date.now()).slice(0, 7);
+    const monthCount = entries.filter((e) => e.id.startsWith(monthPrefix)).length;
+    const current = streakFrom(ids, 365);
+    // 最長連続(この1年)
+    let best = 0, run = 0, prev = null;
+    [...ids].sort().forEach((id) => {
+      const [y, m, d] = id.split("-").map(Number);
+      const t = new Date(y, m - 1, d).getTime();
+      run = (prev !== null && t - prev === 86400000) ? run + 1 : 1;
+      best = Math.max(best, run);
+      prev = t;
+    });
+    const firstDay = entries.map((e) => e.id).sort()[0] || null;
+    const firstLabel = firstDay
+      ? (() => { const [y, m, d] = firstDay.split("-").map(Number); return `${y}/${m}/${d}`; })()
+      : "—";
+    const tiles = [
+      { v: `${totalDays}日`, l: "この1年の筋トレ" },
+      { v: `${totalSessions}回`, l: "セッション数" },
+      { v: `${monthCount}日`, l: "今月" },
+      { v: `${current}日`, l: "いま連続", hot: current >= 2 }, // 連続中は燃やす
+      { v: `${best}日`, l: "最長連続" },
+      { v: firstLabel, l: "いちばん古い記録" },
+    ];
+    const grid = $("stat-grid");
+    grid.innerHTML = "";
+    grid.className = "stat-grid";
+    for (const t of tiles) {
+      const tile = document.createElement("div");
+      tile.className = "stat-tile" + (t.hot ? " hot" : "");
+      const v = document.createElement("p");
+      v.className = "stat-value";
+      v.textContent = t.v;
+      const l = document.createElement("p");
+      l.className = "stat-label";
+      l.textContent = t.l;
+      tile.append(v, l);
+      grid.appendChild(tile);
+    }
+    renderWeekChart(ids);
+    renderMonthChart(entries);
+  }
+
+  // 週ごとの筋トレ日数バー(直近8週・月曜はじまり)
+  function renderWeekChart(ids) {
+    const host = $("week-chart");
+    host.innerHTML = "";
+    const dow = (new Date().getDay() + 6) % 7;
+    const thisMonday = Date.now() - dow * 86400000;
+    const weeks = [];
+    for (let w = 7; w >= 0; w--) {
+      const monday = thisMonday - w * 7 * 86400000;
+      let count = 0;
+      for (let d = 0; d < 7; d++) {
+        if (ids.has(localDayStr(monday + d * 86400000))) count++;
+      }
+      const md = new Date(monday);
+      weeks.push({
+        label: w === 0 ? "今週" : w === 1 ? "先週" : `${md.getMonth() + 1}/${md.getDate()}`,
+        count,
+        current: w === 0,
+      });
+    }
+    const max = Math.max(...weeks.map((x) => x.count), 1);
+    for (const x of weeks) {
+      const row = document.createElement("div");
+      row.className = "bar-row" + (x.current ? " current" : "");
+      const label = document.createElement("span");
+      label.className = "bar-label";
+      label.textContent = x.label;
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const bar = document.createElement("div");
+      bar.className = "bar-fill";
+      bar.style.width = `${Math.round((x.count / max) * 100)}%`;
+      track.appendChild(bar);
+      const val = document.createElement("span");
+      val.className = "bar-value";
+      val.textContent = `${x.count}日`;
+      row.append(label, track, val);
+      host.appendChild(row);
+    }
+  }
+
+  // 月ごとの筋トレ日数バー(直近6ヶ月)
+  function renderMonthChart(entries) {
+    const host = $("month-chart");
+    host.innerHTML = "";
+    const now = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      months.push({
+        label: `${d.getMonth() + 1}月`,
+        count: entries.filter((e) => e.id.startsWith(prefix)).length,
+        current: i === 0,
+      });
+    }
+    const max = Math.max(...months.map((m) => m.count), 1);
+    for (const m of months) {
+      const row = document.createElement("div");
+      row.className = "bar-row" + (m.current ? " current" : "");
+      const label = document.createElement("span");
+      label.className = "bar-label";
+      label.textContent = m.label;
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const bar = document.createElement("div");
+      bar.className = "bar-fill";
+      bar.style.width = `${Math.round((m.count / max) * 100)}%`;
+      track.appendChild(bar);
+      const val = document.createElement("span");
+      val.className = "bar-value";
+      val.textContent = `${m.count}日`;
+      row.append(label, track, val);
+      host.appendChild(row);
+    }
+  }
+
+  // ---------- ふりかえりページ(気分の内訳と履歴) ----------
+  async function renderMoodsPage() {
+    const entries = await loadAllEntries();
+    const withMood = entries.filter((e) => e.mood).sort((a, b) => (a.id < b.id ? 1 : -1));
+    // 内訳バー
+    const counts = { fire: 0, good: 0, meh: 0 };
+    withMood.forEach((e) => { if (counts[e.mood] !== undefined) counts[e.mood]++; });
+    const total = counts.fire + counts.good + counts.meh;
+    const ratio = $("mood-ratio");
+    ratio.innerHTML = "";
+    if (total === 0) {
+      ratio.innerHTML = `<p class="muted">まだふりかえりがありません。筋トレ終了のときに気分を選ぶと、ここにたまっていきます</p>`;
+    } else {
+      const bar = document.createElement("div");
+      bar.className = "mood-ratio-bar";
+      for (const k of ["fire", "good", "meh"]) {
+        if (!counts[k]) continue;
+        const seg = document.createElement("div");
+        seg.className = `seg seg-${k}`;
+        seg.style.width = `${(counts[k] / total) * 100}%`;
+        bar.appendChild(seg);
+      }
+      const legend = document.createElement("p");
+      legend.className = "muted small";
+      legend.textContent =
+        `🔥やり切った ${counts.fire} ・ 😊ぼちぼち ${counts.good} ・ 🫠さぼり気味 ${counts.meh}(計${total}回)`;
+      ratio.append(bar, legend);
+    }
+    // 最近のふりかえり(30件まで)
+    const list = $("mood-list");
+    list.innerHTML = "";
+    if (withMood.length === 0) {
+      list.innerHTML = `<li class="muted">まだありません</li>`;
+      return;
+    }
+    for (const e of withMood.slice(0, 30)) {
+      const [, m, d] = e.id.split("-").map(Number);
+      const li = document.createElement("li");
+      li.className = "mood-row";
+      const date = document.createElement("span");
+      date.className = "mood-date";
+      date.textContent = `${m}/${d}`;
+      const body = document.createElement("span");
+      body.textContent = `${MOOD_EMOJI[e.mood] || ""}${MOOD_LABEL[e.mood] || ""}`
+        + (e.doneMessage ? ` 「${e.doneMessage}」` : "");
+      li.append(date, body);
+      list.appendChild(li);
+    }
+  }
+
+  // ---------- メモ帳ページ(メモ・ひとことのある日だけ) ----------
+  async function renderNotesPage() {
+    const entries = await loadAllEntries();
+    const withText = entries
+      .filter((e) => e.note || e.doneMessage)
+      .sort((a, b) => (a.id < b.id ? 1 : -1));
+    const list = $("note-list");
+    list.innerHTML = "";
+    if (withText.length === 0) {
+      list.innerHTML = `<li class="muted">まだメモがありません。筋トレ終了のときに「詳細な記録」や「ひとこと」を書くと、ここにたまっていきます</li>`;
+      return;
+    }
+    const week = ["日", "月", "火", "水", "木", "金", "土"];
+    for (const e of withText) {
+      const [y, m, d] = e.id.split("-").map(Number);
+      const li = document.createElement("li");
+      li.className = "note-card";
+      const head = document.createElement("p");
+      head.className = "note-date";
+      head.textContent = `${m}月${d}日(${week[new Date(y, m - 1, d).getDay()]})`
+        + (e.mood ? ` ${MOOD_EMOJI[e.mood] || ""}` : "");
+      li.appendChild(head);
+      if (e.doneMessage) {
+        const msg = document.createElement("p");
+        msg.className = "note-msg";
+        msg.textContent = `🎉 「${e.doneMessage}」`;
+        li.appendChild(msg);
+      }
+      if (e.note) {
+        const body = document.createElement("p");
+        body.className = "note-body";
+        body.textContent = e.note;
+        li.appendChild(body);
+      }
+      list.appendChild(li);
+    }
+  }
+
+  // ---------- カレンダーページ(月別・過去に遡れる) ----------
+  let calendarMonths = 3;
+  $("btn-cal-more").addEventListener("click", () => {
+    calendarMonths = Math.min(calendarMonths + 3, 12);
+    renderCalendarPage();
+  });
+  async function renderCalendarPage() {
+    const entries = await loadAllEntries();
+    const byDay = {};
+    entries.forEach((e) => { byDay[e.id] = e; });
+    const host = $("cal-months");
+    host.innerHTML = "";
+    const now = new Date();
+    for (let m = 0; m < calendarMonths; m++) {
+      host.appendChild(renderMonthGrid(now.getFullYear(), now.getMonth() - m, byDay));
+    }
+    const moreBtn = $("btn-cal-more");
+    moreBtn.hidden = calendarMonths >= 12;
+    moreBtn.textContent = `さらに過去を見る(いま${calendarMonths}ヶ月分・最大1年)`;
+  }
+  // その日のあらまし(タップ時のポップ用)
+  function daySummary(day, e) {
+    const [, m, d] = day.split("-").map(Number);
+    const parts = [`${m}月${d}日: ${e.starts.length}回`];
+    if (e.mood) parts.push(`${MOOD_EMOJI[e.mood] || ""}${MOOD_LABEL[e.mood] || ""}`);
+    if (e.doneMessage) parts.push(`「${e.doneMessage}」`);
+    if (e.note) parts.push("📝メモあり");
+    return parts.join(" ・ ");
+  }
+  function renderMonthGrid(year, month, byDay) {
+    const first = new Date(year, month, 1); // monthは負でもDateが正規化してくれる
+    const y = first.getFullYear(), mo = first.getMonth();
+    const daysIn = new Date(y, mo + 1, 0).getDate();
+    const todayStr = localDayStr(Date.now());
+    const wrap = document.createElement("div");
+    wrap.className = "cal-month";
+    const grid = document.createElement("div");
+    grid.className = "dot-cal";
+    ["月", "火", "水", "木", "金", "土", "日"].forEach((w) => {
+      const h = document.createElement("span");
+      h.className = "dow";
+      h.textContent = w;
+      grid.appendChild(h);
+    });
+    const lead = (first.getDay() + 6) % 7; // 月曜はじまり
+    for (let i = 0; i < lead; i++) {
+      const sp = document.createElement("span");
+      sp.className = "cell";
+      grid.appendChild(sp);
+    }
+    let done = 0;
+    for (let d = 1; d <= daysIn; d++) {
+      const day = `${y}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const c = document.createElement("span");
+      c.className = "cell";
+      if (day === todayStr) c.classList.add("today");
+      if (byDay[day]) {
+        done++;
+        c.textContent = "🐤";
+        if (byDay[day].mood) c.classList.add(`m-${byDay[day].mood}`); // 気分のドット
+        c.style.cursor = "pointer";
+        c.addEventListener("click", () => toast(daySummary(day, byDay[day])));
+      } else {
+        const ts = new Date(y, mo, d).getTime();
+        c.classList.add(ts > Date.now() ? "future" : "miss");
+        c.textContent = "・";
+      }
+      grid.appendChild(c);
+    }
+    const title = document.createElement("p");
+    title.className = "cal-title";
+    const tName = document.createElement("span");
+    tName.textContent = `${y}年${mo + 1}月`;
+    const tCount = document.createElement("small");
+    tCount.textContent = done > 0 ? `🐤 ${done}日` : "0日";
+    title.append(tName, tCount);
+    wrap.append(title, grid);
+    return wrap;
   }
 
   // ---------- 筋トレ中の画面(時計 + フキダシ付箋) ----------
