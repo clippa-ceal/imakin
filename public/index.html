@@ -119,6 +119,7 @@
         <button id="btn-open-history" class="btn primary">日ごとの記録を見る</button>
         <button id="btn-open-calendar" class="btn ghost">🗓 カレンダーを見る</button>
         <button id="btn-open-stats" class="btn ghost">📊 統計を見る</button>
+        <button id="btn-open-moods" class="btn ghost">🔥 ふりかえりを見る</button>
       </div>
     </div>
 
@@ -132,6 +133,22 @@
         <p id="history-stats" class="field-label" hidden></p>
         <p id="mood-stats" class="muted small" hidden></p>
         <ul id="history-list" class="plain-list"></ul>
+      </div>
+    </div>
+
+    <!-- ふりかえり(記録から開くサブページ) -->
+    <div id="tab-moods" class="tab-page" hidden>
+      <header class="page-head friends-head">
+        <button class="chip-x back-btn history-back" aria-label="記録に戻る">←</button>
+        <h2>ふりかえり</h2>
+      </header>
+      <div class="card">
+        <p class="field-label">この1年の気分の内訳</p>
+        <div id="mood-ratio"><p class="muted">読み込み中…</p></div>
+      </div>
+      <div class="card">
+        <p class="field-label">最近のふりかえり</p>
+        <ul id="mood-list" class="plain-list"></ul>
       </div>
     </div>
 

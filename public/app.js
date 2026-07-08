@@ -158,7 +158,7 @@ function main() {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
   // 記録のサブページ(ナビ上では「記録」をハイライトし、←で記録に戻る)
-  const HISTORY_SUBPAGES = ["historyDetail", "calendar", "stats"];
+  const HISTORY_SUBPAGES = ["historyDetail", "calendar", "stats", "moods"];
   function switchTab(tab) {
     const navTab = tab === "friends" ? "settings" : HISTORY_SUBPAGES.includes(tab) ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
@@ -166,6 +166,7 @@ function main() {
     if (tab === "history" || tab === "historyDetail") loadHistory();
     if (tab === "calendar") renderCalendarPage();
     if (tab === "stats") renderStatsPage();
+    if (tab === "moods") renderMoodsPage();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
@@ -173,6 +174,7 @@ function main() {
   $("btn-open-history").addEventListener("click", () => switchTab("historyDetail"));
   $("btn-open-calendar").addEventListener("click", () => switchTab("calendar"));
   $("btn-open-stats").addEventListener("click", () => switchTab("stats"));
+  $("btn-open-moods").addEventListener("click", () => switchTab("moods"));
   document.querySelectorAll(".history-back").forEach((b) =>
     b.addEventListener("click", () => switchTab("history")));
 
@@ -923,6 +925,56 @@ function main() {
       val.textContent = `${m.count}日`;
       row.append(label, track, val);
       host.appendChild(row);
+    }
+  }
+
+  // ---------- ふりかえりページ(気分の内訳と履歴) ----------
+  async function renderMoodsPage() {
+    const entries = await loadAllEntries();
+    const withMood = entries.filter((e) => e.mood).sort((a, b) => (a.id < b.id ? 1 : -1));
+    // 内訳バー
+    const counts = { fire: 0, good: 0, meh: 0 };
+    withMood.forEach((e) => { if (counts[e.mood] !== undefined) counts[e.mood]++; });
+    const total = counts.fire + counts.good + counts.meh;
+    const ratio = $("mood-ratio");
+    ratio.innerHTML = "";
+    if (total === 0) {
+      ratio.innerHTML = `<p class="muted">まだふりかえりがありません。筋トレ終了のときに気分を選ぶと、ここにたまっていきます</p>`;
+    } else {
+      const bar = document.createElement("div");
+      bar.className = "mood-ratio-bar";
+      for (const k of ["fire", "good", "meh"]) {
+        if (!counts[k]) continue;
+        const seg = document.createElement("div");
+        seg.className = `seg seg-${k}`;
+        seg.style.width = `${(counts[k] / total) * 100}%`;
+        bar.appendChild(seg);
+      }
+      const legend = document.createElement("p");
+      legend.className = "muted small";
+      legend.textContent =
+        `🔥やり切った ${counts.fire} ・ 😊ぼちぼち ${counts.good} ・ 🫠さぼり気味 ${counts.meh}(計${total}回)`;
+      ratio.append(bar, legend);
+    }
+    // 最近のふりかえり(30件まで)
+    const list = $("mood-list");
+    list.innerHTML = "";
+    if (withMood.length === 0) {
+      list.innerHTML = `<li class="muted">まだありません</li>`;
+      return;
+    }
+    for (const e of withMood.slice(0, 30)) {
+      const [, m, d] = e.id.split("-").map(Number);
+      const li = document.createElement("li");
+      li.className = "mood-row";
+      const date = document.createElement("span");
+      date.className = "mood-date";
+      date.textContent = `${m}/${d}`;
+      const body = document.createElement("span");
+      body.textContent = `${MOOD_EMOJI[e.mood] || ""}${MOOD_LABEL[e.mood] || ""}`
+        + (e.doneMessage ? ` 「${e.doneMessage}」` : "");
+      li.append(date, body);
+      list.appendChild(li);
     }
   }
 
