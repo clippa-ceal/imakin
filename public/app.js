@@ -614,6 +614,12 @@ function main() {
   };
 
   const HIST_CACHE_KEY = "imakinHistCache";
+  // 日ごとの記録の表示範囲(「さらに過去を見る」で60日ずつ、最大1年)
+  let histDays = 60;
+  $("btn-hist-more").addEventListener("click", () => {
+    histDays = Math.min(histDays + 60, 365);
+    loadHistory();
+  });
 
   async function loadHistory() {
     if (!me) return;
@@ -627,7 +633,7 @@ function main() {
     try {
       const snap = await getDocs(query(
         collection(db, "users", me.uid, "sessions"),
-        where(documentId(), ">=", localDayStr(Date.now() - 59 * 86400000)),
+        where(documentId(), ">=", localDayStr(Date.now() - (histDays - 1) * 86400000)),
       ));
       const entries = snap.docs.map((d) => {
         const s = d.data();
@@ -642,6 +648,8 @@ function main() {
         };
       });
       localStorage.setItem(HIST_CACHE_KEY, JSON.stringify(entries));
+      $("btn-hist-more").hidden = histDays >= 365;
+      $("btn-hist-more").textContent = `さらに過去を見る(いま${histDays}日分・最大1年)`;
       renderHistory(entries);
     } catch (e) {
       console.error(e);
