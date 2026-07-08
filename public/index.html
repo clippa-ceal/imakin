@@ -120,6 +120,7 @@
         <button id="btn-open-calendar" class="btn ghost">🗓 カレンダーを見る</button>
         <button id="btn-open-stats" class="btn ghost">📊 統計を見る</button>
         <button id="btn-open-moods" class="btn ghost">🔥 ふりかえりを見る</button>
+        <button id="btn-open-notes" class="btn ghost">📝 メモ帳を見る</button>
       </div>
     </div>
 
@@ -133,6 +134,17 @@
         <p id="history-stats" class="field-label" hidden></p>
         <p id="mood-stats" class="muted small" hidden></p>
         <ul id="history-list" class="plain-list"></ul>
+      </div>
+    </div>
+
+    <!-- メモ帳(記録から開くサブページ) -->
+    <div id="tab-notes" class="tab-page" hidden>
+      <header class="page-head friends-head">
+        <button class="chip-x back-btn history-back" aria-label="記録に戻る">←</button>
+        <h2>メモ帳</h2>
+      </header>
+      <div class="card">
+        <ul id="note-list" class="plain-list"><li class="muted">読み込み中…</li></ul>
       </div>
     </div>
 

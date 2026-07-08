@@ -158,7 +158,7 @@ function main() {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
   // 記録のサブページ(ナビ上では「記録」をハイライトし、←で記録に戻る)
-  const HISTORY_SUBPAGES = ["historyDetail", "calendar", "stats", "moods"];
+  const HISTORY_SUBPAGES = ["historyDetail", "calendar", "stats", "moods", "notes"];
   function switchTab(tab) {
     const navTab = tab === "friends" ? "settings" : HISTORY_SUBPAGES.includes(tab) ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
@@ -167,6 +167,7 @@ function main() {
     if (tab === "calendar") renderCalendarPage();
     if (tab === "stats") renderStatsPage();
     if (tab === "moods") renderMoodsPage();
+    if (tab === "notes") renderNotesPage();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
@@ -175,6 +176,7 @@ function main() {
   $("btn-open-calendar").addEventListener("click", () => switchTab("calendar"));
   $("btn-open-stats").addEventListener("click", () => switchTab("stats"));
   $("btn-open-moods").addEventListener("click", () => switchTab("moods"));
+  $("btn-open-notes").addEventListener("click", () => switchTab("notes"));
   document.querySelectorAll(".history-back").forEach((b) =>
     b.addEventListener("click", () => switchTab("history")));
 
@@ -974,6 +976,44 @@ function main() {
       body.textContent = `${MOOD_EMOJI[e.mood] || ""}${MOOD_LABEL[e.mood] || ""}`
         + (e.doneMessage ? ` 「${e.doneMessage}」` : "");
       li.append(date, body);
+      list.appendChild(li);
+    }
+  }
+
+  // ---------- メモ帳ページ(メモ・ひとことのある日だけ) ----------
+  async function renderNotesPage() {
+    const entries = await loadAllEntries();
+    const withText = entries
+      .filter((e) => e.note || e.doneMessage)
+      .sort((a, b) => (a.id < b.id ? 1 : -1));
+    const list = $("note-list");
+    list.innerHTML = "";
+    if (withText.length === 0) {
+      list.innerHTML = `<li class="muted">まだメモがありません。筋トレ終了のときに「詳細な記録」や「ひとこと」を書くと、ここにたまっていきます</li>`;
+      return;
+    }
+    const week = ["日", "月", "火", "水", "木", "金", "土"];
+    for (const e of withText) {
+      const [y, m, d] = e.id.split("-").map(Number);
+      const li = document.createElement("li");
+      li.className = "note-card";
+      const head = document.createElement("p");
+      head.className = "note-date";
+      head.textContent = `${m}月${d}日(${week[new Date(y, m - 1, d).getDay()]})`
+        + (e.mood ? ` ${MOOD_EMOJI[e.mood] || ""}` : "");
+      li.appendChild(head);
+      if (e.doneMessage) {
+        const msg = document.createElement("p");
+        msg.className = "note-msg";
+        msg.textContent = `🎉 「${e.doneMessage}」`;
+        li.appendChild(msg);
+      }
+      if (e.note) {
+        const body = document.createElement("p");
+        body.className = "note-body";
+        body.textContent = e.note;
+        li.appendChild(body);
+      }
       list.appendChild(li);
     }
   }
