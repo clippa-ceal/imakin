@@ -275,6 +275,15 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .mood-row { display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
 .mood-date { color: var(--muted); font-size: 12px; min-width: 38px; text-align: right; }
 
+/* メモ帳ページ */
+.note-card { flex-direction: column; align-items: stretch; gap: 4px; }
+.note-date { font-size: 12px; font-weight: 700; color: var(--muted); }
+.note-msg { font-size: 14px; }
+.note-body {
+  font-size: 14px; white-space: pre-wrap; line-height: 1.6;
+  border-left: 2px solid var(--accent); padding-left: 8px;
+}
+
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
 .chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }
