@@ -118,6 +118,7 @@
         <p id="history-summary" class="muted small">開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です</p>
         <button id="btn-open-history" class="btn primary">日ごとの記録を見る</button>
         <button id="btn-open-calendar" class="btn ghost">🗓 カレンダーを見る</button>
+        <button id="btn-open-stats" class="btn ghost">📊 統計を見る</button>
       </div>
     </div>
 
@@ -131,6 +132,17 @@
         <p id="history-stats" class="field-label" hidden></p>
         <p id="mood-stats" class="muted small" hidden></p>
         <ul id="history-list" class="plain-list"></ul>
+      </div>
+    </div>
+
+    <!-- 統計(記録から開くサブページ) -->
+    <div id="tab-stats" class="tab-page" hidden>
+      <header class="page-head friends-head">
+        <button class="chip-x back-btn history-back" aria-label="記録に戻る">←</button>
+        <h2>統計</h2>
+      </header>
+      <div class="card">
+        <div id="stat-grid"><p class="muted">読み込み中…</p></div>
       </div>
     </div>
 

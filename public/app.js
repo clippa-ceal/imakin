@@ -158,19 +158,21 @@ function main() {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
   // 記録のサブページ(ナビ上では「記録」をハイライトし、←で記録に戻る)
-  const HISTORY_SUBPAGES = ["historyDetail", "calendar"];
+  const HISTORY_SUBPAGES = ["historyDetail", "calendar", "stats"];
   function switchTab(tab) {
     const navTab = tab === "friends" ? "settings" : HISTORY_SUBPAGES.includes(tab) ? "history" : tab;
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === navTab));
     document.querySelectorAll(".tab-page").forEach((p) => { p.hidden = p.id !== "tab-" + tab; });
     if (tab === "history" || tab === "historyDetail") loadHistory();
     if (tab === "calendar") renderCalendarPage();
+    if (tab === "stats") renderStatsPage();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
   $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
   $("btn-open-history").addEventListener("click", () => switchTab("historyDetail"));
   $("btn-open-calendar").addEventListener("click", () => switchTab("calendar"));
+  $("btn-open-stats").addEventListener("click", () => switchTab("stats"));
   document.querySelectorAll(".history-back").forEach((b) =>
     b.addEventListener("click", () => switchTab("history")));
 
@@ -838,6 +840,53 @@ function main() {
       localStorage.setItem(ALL_CACHE_KEY, JSON.stringify(allEntries));
     } catch (e) { console.error(e); }
     return allEntries || [];
+  }
+
+  // ---------- 統計ページ ----------
+  async function renderStatsPage() {
+    const entries = await loadAllEntries();
+    const ids = new Set(entries.map((e) => e.id));
+    const totalDays = entries.length;
+    const totalSessions = entries.reduce((s, e) => s + e.starts.length, 0);
+    const monthPrefix = localDayStr(Date.now()).slice(0, 7);
+    const monthCount = entries.filter((e) => e.id.startsWith(monthPrefix)).length;
+    const current = streakFrom(ids, 365);
+    // 最長連続(この1年)
+    let best = 0, run = 0, prev = null;
+    [...ids].sort().forEach((id) => {
+      const [y, m, d] = id.split("-").map(Number);
+      const t = new Date(y, m - 1, d).getTime();
+      run = (prev !== null && t - prev === 86400000) ? run + 1 : 1;
+      best = Math.max(best, run);
+      prev = t;
+    });
+    const firstDay = entries.map((e) => e.id).sort()[0] || null;
+    const firstLabel = firstDay
+      ? (() => { const [y, m, d] = firstDay.split("-").map(Number); return `${y}/${m}/${d}`; })()
+      : "—";
+    const tiles = [
+      { v: `${totalDays}日`, l: "この1年の筋トレ" },
+      { v: `${totalSessions}回`, l: "セッション数" },
+      { v: `${monthCount}日`, l: "今月" },
+      { v: `${current}日`, l: "いま連続" },
+      { v: `${best}日`, l: "最長連続" },
+      { v: firstLabel, l: "いちばん古い記録" },
+    ];
+    const grid = $("stat-grid");
+    grid.innerHTML = "";
+    grid.className = "stat-grid";
+    for (const t of tiles) {
+      const tile = document.createElement("div");
+      tile.className = "stat-tile";
+      const v = document.createElement("p");
+      v.className = "stat-value";
+      v.textContent = t.v;
+      const l = document.createElement("p");
+      l.className = "stat-label";
+      l.textContent = t.l;
+      tile.append(v, l);
+      grid.appendChild(tile);
+    }
   }
 
   // ---------- カレンダーページ(月別・過去に遡れる) ----------
