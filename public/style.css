@@ -263,6 +263,18 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .bar-value { width: 36px; font-size: 12px; color: var(--muted); }
 .bar-row.current .bar-value { color: var(--accent2); font-weight: 700; }
 
+/* ふりかえりページ */
+.mood-ratio-bar {
+  display: flex; height: 18px; border-radius: 9px; overflow: hidden;
+  background: var(--card2); margin-bottom: 8px;
+}
+.mood-ratio-bar .seg { min-width: 3px; }
+.mood-ratio-bar .seg-fire { background: #ff6b4a; }
+.mood-ratio-bar .seg-good { background: #7bd47e; }
+.mood-ratio-bar .seg-meh { background: #9aa3c7; }
+.mood-row { display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
+.mood-date { color: var(--muted); font-size: 12px; min-width: 38px; text-align: right; }
+
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
 .chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }
