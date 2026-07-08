@@ -249,6 +249,20 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .stat-value { font-size: 22px; font-weight: 800; color: var(--accent2); }
 .stat-label { font-size: 12px; color: var(--muted); }
 
+/* 月別バーグラフ */
+.bar-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.bar-label { width: 36px; font-size: 12px; color: var(--muted); text-align: right; }
+.bar-track { flex: 1; height: 14px; background: var(--card2); border-radius: 7px; overflow: hidden; }
+.bar-fill {
+  height: 100%; border-radius: 7px; min-width: 2px;
+  background: linear-gradient(90deg, #5a6acf, #8a7ae8);
+  transition: width .3s ease;
+}
+.bar-row.current .bar-label { color: var(--text); font-weight: 700; }
+.bar-row.current .bar-fill { background: linear-gradient(90deg, var(--accent), #ffd166); }
+.bar-value { width: 36px; font-size: 12px; color: var(--muted); }
+.bar-row.current .bar-value { color: var(--accent2); font-weight: 700; }
+
 /* ひよこ(筋トレ記録) */
 .chick-row { cursor: pointer; }
 .chick-row .name { flex: 0 0 auto; max-width: 32%; font-size: 14px; }
