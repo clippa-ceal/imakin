@@ -248,10 +248,12 @@ input:focus, textarea:focus { border-color: var(--accent); }
 }
 .stat-value { font-size: 22px; font-weight: 800; color: var(--accent2); }
 .stat-label { font-size: 12px; color: var(--muted); }
+.stat-tile.hot { border: 1px solid var(--accent); }
+.stat-tile.hot .stat-value { color: var(--accent); }
 
 /* 月別バーグラフ */
 .bar-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
-.bar-label { width: 36px; font-size: 12px; color: var(--muted); text-align: right; }
+.bar-label { width: 44px; font-size: 12px; color: var(--muted); text-align: right; }
 .bar-track { flex: 1; height: 14px; background: var(--card2); border-radius: 7px; overflow: hidden; }
 .bar-fill {
   height: 100%; border-radius: 7px; min-width: 2px;

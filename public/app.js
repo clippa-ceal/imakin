@@ -877,7 +877,7 @@ function main() {
       { v: `${totalDays}日`, l: "この1年の筋トレ" },
       { v: `${totalSessions}回`, l: "セッション数" },
       { v: `${monthCount}日`, l: "今月" },
-      { v: `${current}日`, l: "いま連続" },
+      { v: `${current}日`, l: "いま連続", hot: current >= 2 }, // 連続中は燃やす
       { v: `${best}日`, l: "最長連続" },
       { v: firstLabel, l: "いちばん古い記録" },
     ];
@@ -886,7 +886,7 @@ function main() {
     grid.className = "stat-grid";
     for (const t of tiles) {
       const tile = document.createElement("div");
-      tile.className = "stat-tile";
+      tile.className = "stat-tile" + (t.hot ? " hot" : "");
       const v = document.createElement("p");
       v.className = "stat-value";
       v.textContent = t.v;
