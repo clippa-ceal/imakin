@@ -172,11 +172,8 @@ function main() {
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
   $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
-  $("btn-open-history").addEventListener("click", () => switchTab("historyDetail"));
-  $("btn-open-calendar").addEventListener("click", () => switchTab("calendar"));
-  $("btn-open-stats").addEventListener("click", () => switchTab("stats"));
-  $("btn-open-moods").addEventListener("click", () => switchTab("moods"));
-  $("btn-open-notes").addEventListener("click", () => switchTab("notes"));
+  document.querySelectorAll(".menu-item[data-page]").forEach((b) =>
+    b.addEventListener("click", () => switchTab(b.dataset.page)));
   document.querySelectorAll(".history-back").forEach((b) =>
     b.addEventListener("click", () => switchTab("history")));
 

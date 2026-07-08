@@ -116,11 +116,28 @@
       <div class="card">
         <p class="field-label">📖 くわしく見る</p>
         <p id="history-summary" class="muted small">開始時刻・ひとこと・メモを含む、日ごとのくわしい記録です</p>
-        <button id="btn-open-history" class="btn primary">日ごとの記録を見る</button>
-        <button id="btn-open-calendar" class="btn ghost">🗓 カレンダーを見る</button>
-        <button id="btn-open-stats" class="btn ghost">📊 統計を見る</button>
-        <button id="btn-open-moods" class="btn ghost">🔥 ふりかえりを見る</button>
-        <button id="btn-open-notes" class="btn ghost">📝 メモ帳を見る</button>
+        <ul class="menu-list">
+          <li><button class="menu-item" data-page="historyDetail">
+            <span class="mi-icon">📖</span>
+            <span class="mi-body"><span class="mi-title">日ごとの記録</span><span class="mi-desc">開始時刻・ひとこと・メモ</span></span>
+            <span class="mi-arrow">›</span></button></li>
+          <li><button class="menu-item" data-page="calendar">
+            <span class="mi-icon">🗓</span>
+            <span class="mi-body"><span class="mi-title">カレンダー</span><span class="mi-desc">月ごとのようす(最大1年)</span></span>
+            <span class="mi-arrow">›</span></button></li>
+          <li><button class="menu-item" data-page="stats">
+            <span class="mi-icon">📊</span>
+            <span class="mi-body"><span class="mi-title">統計</span><span class="mi-desc">連続記録・月ごとのグラフ</span></span>
+            <span class="mi-arrow">›</span></button></li>
+          <li><button class="menu-item" data-page="moods">
+            <span class="mi-icon">🔥</span>
+            <span class="mi-body"><span class="mi-title">ふりかえり</span><span class="mi-desc">気分の内訳と履歴</span></span>
+            <span class="mi-arrow">›</span></button></li>
+          <li><button class="menu-item" data-page="notes">
+            <span class="mi-icon">📝</span>
+            <span class="mi-body"><span class="mi-title">メモ帳</span><span class="mi-desc">書いたメモとひとこと</span></span>
+            <span class="mi-arrow">›</span></button></li>
+        </ul>
       </div>
     </div>
 
