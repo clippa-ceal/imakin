@@ -887,6 +887,43 @@ function main() {
       tile.append(v, l);
       grid.appendChild(tile);
     }
+    renderMonthChart(entries);
+  }
+
+  // 月ごとの筋トレ日数バー(直近6ヶ月)
+  function renderMonthChart(entries) {
+    const host = $("month-chart");
+    host.innerHTML = "";
+    const now = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      months.push({
+        label: `${d.getMonth() + 1}月`,
+        count: entries.filter((e) => e.id.startsWith(prefix)).length,
+        current: i === 0,
+      });
+    }
+    const max = Math.max(...months.map((m) => m.count), 1);
+    for (const m of months) {
+      const row = document.createElement("div");
+      row.className = "bar-row" + (m.current ? " current" : "");
+      const label = document.createElement("span");
+      label.className = "bar-label";
+      label.textContent = m.label;
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const bar = document.createElement("div");
+      bar.className = "bar-fill";
+      bar.style.width = `${Math.round((m.count / max) * 100)}%`;
+      track.appendChild(bar);
+      const val = document.createElement("span");
+      val.className = "bar-value";
+      val.textContent = `${m.count}日`;
+      row.append(label, track, val);
+      host.appendChild(row);
+    }
   }
 
   // ---------- カレンダーページ(月別・過去に遡れる) ----------
