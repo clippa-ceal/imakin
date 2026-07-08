@@ -896,7 +896,49 @@ function main() {
       tile.append(v, l);
       grid.appendChild(tile);
     }
+    renderWeekChart(ids);
     renderMonthChart(entries);
+  }
+
+  // 週ごとの筋トレ日数バー(直近8週・月曜はじまり)
+  function renderWeekChart(ids) {
+    const host = $("week-chart");
+    host.innerHTML = "";
+    const dow = (new Date().getDay() + 6) % 7;
+    const thisMonday = Date.now() - dow * 86400000;
+    const weeks = [];
+    for (let w = 7; w >= 0; w--) {
+      const monday = thisMonday - w * 7 * 86400000;
+      let count = 0;
+      for (let d = 0; d < 7; d++) {
+        if (ids.has(localDayStr(monday + d * 86400000))) count++;
+      }
+      const md = new Date(monday);
+      weeks.push({
+        label: w === 0 ? "今週" : w === 1 ? "先週" : `${md.getMonth() + 1}/${md.getDate()}`,
+        count,
+        current: w === 0,
+      });
+    }
+    const max = Math.max(...weeks.map((x) => x.count), 1);
+    for (const x of weeks) {
+      const row = document.createElement("div");
+      row.className = "bar-row" + (x.current ? " current" : "");
+      const label = document.createElement("span");
+      label.className = "bar-label";
+      label.textContent = x.label;
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const bar = document.createElement("div");
+      bar.className = "bar-fill";
+      bar.style.width = `${Math.round((x.count / max) * 100)}%`;
+      track.appendChild(bar);
+      const val = document.createElement("span");
+      val.className = "bar-value";
+      val.textContent = `${x.count}日`;
+      row.append(label, track, val);
+      host.appendChild(row);
+    }
   }
 
   // 月ごとの筋トレ日数バー(直近6ヶ月)
