@@ -28,6 +28,7 @@ function nowInWindow(start, end) {
  * 「今から筋トレするよ」通知を送る。
  * - 通知はどこにも保存しない(あとから参照できない仕様)
  * - 誰に届いたかは呼び出し元に返さない(既読不明の仕様)
+ * - silent=true(宣言せずにスタート)はセッション記録だけ書いて通知しない
  */
 const STAMPS = ["👍", "🔥", "💪", "🤣"];
 
@@ -37,6 +38,8 @@ exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
 
   // kind: start=筋トレ開始(既定) / done=終了報告 / stamp=フキダシへのスタンプ
   const kind = ["start", "done", "stamp"].includes(req.data?.kind) ? req.data.kind : "start";
+  // silent=宣言せずにスタート: セッション記録だけ残して通知は送らない
+  const silent = kind === "start" && req.data?.silent === true;
   const untilTime = kind === "start" ? String(req.data?.untilTime || "") : "";
   const message = String(req.data?.message || "").trim();
   const replyTo = req.data?.replyTo ? String(req.data.replyTo) : null;
@@ -59,14 +62,17 @@ exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
   // セッション記録: 日ごとのdocに、その日の各セッション(開始時刻・何時まで・一言)を追記
   if (kind === "start") {
     const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date());
-    await db.doc(`users/${uid}/sessions/${day}`).set(
-      {
-        lastStartAt: Date.now(),
-        untilTime,
-        starts: FieldValue.arrayUnion({ at: Date.now(), untilTime, message }),
-      },
-      { merge: true },
-    );
+    const startAt = Date.now();
+    // サイレント時はdoc直下の lastStartAt / untilTime を更新しない。
+    // 友達側の「いま筋トレ中」判定はdoc直下だけを見るため、これだけで
+    // 「記録(ひよこ・履歴)には残るが、みんなタブには出ない」が成立する
+    const record = { starts: FieldValue.arrayUnion({ at: startAt, untilTime, message }) };
+    if (!silent) {
+      record.lastStartAt = startAt;
+      record.untilTime = untilTime;
+    }
+    await db.doc(`users/${uid}/sessions/${day}`).set(record, { merge: true });
+    if (silent) return { ok: true };
   }
 
   // 送信先: 返信なら相手1人、通常は友達全員

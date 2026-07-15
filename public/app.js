@@ -220,8 +220,10 @@ function main() {
   // みんなタブ:共鳴して全員に宣言(直近で始めた人の終了時刻に合わせる)
   $("btn-resonate-all").addEventListener("click", () => composeResonate(activeFriends[0]?.untilTime));
 
-  $("btn-send").addEventListener("click", async () => {
-    const btn = $("btn-send");
+  // silent=true は「宣言せずにスタート」: 通知を送らず、みんなタブにも出ない
+  // (記録=ひよこ・履歴・連続日数には宣言時と同じように残る)
+  async function sendStart(silent) {
+    const btn = silent ? $("btn-silent") : $("btn-send");
     const untilTime = untilInput.value;
     const message = $("message").value.trim();
     if (!untilTime) { toast("終了時刻を入れてください"); return; }
@@ -234,15 +236,15 @@ function main() {
     btn.disabled = true;
     try {
       const send = httpsCallable(functions, "sendWorkout");
-      await send({ untilTime, message, replyTo: replyTo?.uid ?? null });
-      toast(replyTo ? `${replyTo.name}さんと一緒に筋トレ開始💪` : "みんなに宣言しました💪");
+      await send({ untilTime, message, silent, replyTo: silent ? null : replyTo?.uid ?? null });
+      toast(silent ? "宣言せずにスタート🤫" : replyTo ? `${replyTo.name}さんと一緒に筋トレ開始💪` : "みんなに宣言しました💪");
       $("message").value = "";
       $("msg-count").textContent = "0";
-      const withName = replyTo?.name || "";
+      const withName = (!silent && replyTo?.name) || "";
       clearReply();
       enterWorkout({
         endTs: untilToTs(untilTime), startTs: Date.now(),
-        untilTime, message, withName, bubbles: [],
+        untilTime, message, withName, bubbles: [], silent,
       });
       refreshChicks(); // 今日のひよこを反映
     } catch (e) {
@@ -251,7 +253,9 @@ function main() {
     } finally {
       btn.disabled = false;
     }
-  });
+  }
+  $("btn-send").addEventListener("click", () => sendStart(false));
+  $("btn-silent").addEventListener("click", () => sendStart(true));
 
   // ---------- 宣言モード(通常 / 共鳴 / 一緒に筋トレ) ----------
   // 受け取った終了時刻を自分の入力にプリフィル(同じ時間で揃えやすく)
@@ -266,6 +270,7 @@ function main() {
     $("reply-chip-text").textContent = `🤝 ${name} さんと一緒に筋トレ`;
     $("reply-chip").hidden = false;
     $("btn-send").textContent = `🤝 ${name} さんと筋トレ開始`;
+    $("btn-silent").hidden = true; // 相手に応える文脈でサイレントは矛盾するので隠す
     switchTab("declare");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -277,6 +282,7 @@ function main() {
     $("reply-chip-text").textContent = "🔗 共鳴して宣言(全員に届きます)";
     $("reply-chip").hidden = false;
     $("btn-send").textContent = "🔥 共鳴して宣言する";
+    $("btn-silent").hidden = true;
     switchTab("declare");
     window.scrollTo({ top: 0, behavior: "smooth" });
     toast("🔗 共鳴!同じ時間で宣言しよう");
@@ -286,6 +292,7 @@ function main() {
     replyTo = null;
     $("reply-chip").hidden = true;
     $("btn-send").textContent = "🔥 みんなに宣言する";
+    $("btn-silent").hidden = false;
   }
   $("reply-chip-clear").addEventListener("click", clearReply);
 
@@ -1432,8 +1439,9 @@ function main() {
     const reacted = workoutReactedUids();
     finishMood = null;
     document.querySelectorAll(".mood-btn").forEach((b) => b.classList.remove("active"));
-    // 「終わったよ」送信は反応をくれた人がいるときだけ選べる(既定ON)
-    $("finish-send-row").hidden = reacted.length === 0;
+    // 「終わったよ」送信は反応をくれた人がいるときだけ選べる(既定ON)。
+    // サイレントセッションでは出さない(送るとサイレントで始めたことが相手に伝わってしまう)
+    $("finish-send-row").hidden = reacted.length === 0 || !!workout.silent;
     $("finish-send-check").checked = true;
     $("finish-send-label").textContent = `反応をくれた${reacted.length}人に「終わったよ」を送る`;
     $("finish-panel").hidden = false;
@@ -1446,7 +1454,7 @@ function main() {
     const message = $("finish-message").value.trim();
     btn.disabled = true;
     try {
-      if (reacted.length > 0 && $("finish-send-check").checked) {
+      if (!workout?.silent && reacted.length > 0 && $("finish-send-check").checked) {
         const send = httpsCallable(functions, "sendWorkout");
         await send({ kind: "done", message, to: reacted });
         toast("筋トレ終了を知らせました🎉");
