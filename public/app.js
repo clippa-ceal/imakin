@@ -170,6 +170,7 @@ function main() {
     if (tab === "moods") renderMoodsPage();
     if (tab === "notes") renderNotesPage();
     if (tab === "reply") refreshChicks(); // 友達の宣言を最新化
+    if (tab === "declare") pickSilentNudge(); // 開くたびに違うメッセージ
   }
   $("btn-open-friends").addEventListener("click", () => switchTab("friends"));
   $("btn-friends-back").addEventListener("click", () => switchTab("settings"));
@@ -257,6 +258,24 @@ function main() {
   $("btn-send").addEventListener("click", () => sendStart(false));
   $("btn-silent").addEventListener("click", () => sendStart(true));
 
+  // サイレントボタンの横で「宣言する方」をゆるく推すメッセージ。
+  // 宣言タブを開くたびにランダムで変わる
+  const SILENT_NUDGES = [
+    "※ 自分の頑張りを知らしめよう",
+    "※ 宣言すると友達のやる気にも火がつくかも🔥",
+    "※ 言っちゃった方がサボれなくなるらしい",
+    "※ あなたの宣言が誰かの「よし、自分も」になる",
+    "※ 隠すほどの筋トレか?見せつけていこう💪",
+    "※ 共鳴してもらえるのは宣言した人だけ🔗",
+    "※ こっそりもアリ。でも今日の主役はあなたでは?",
+    "※ 筋肉は育つ。宣言すれば友情も育つ",
+  ];
+  function pickSilentNudge() {
+    $("silent-nudge").textContent =
+      SILENT_NUDGES[Math.floor(Math.random() * SILENT_NUDGES.length)];
+  }
+  pickSilentNudge();
+
   // ---------- 宣言モード(通常 / 共鳴 / 一緒に筋トレ) ----------
   // 受け取った終了時刻を自分の入力にプリフィル(同じ時間で揃えやすく)
   function prefillUntil(untilTime) {
@@ -271,6 +290,7 @@ function main() {
     $("reply-chip").hidden = false;
     $("btn-send").textContent = `🤝 ${name} さんと筋トレ開始`;
     $("btn-silent").hidden = true; // 相手に応える文脈でサイレントは矛盾するので隠す
+    $("silent-nudge").hidden = true;
     switchTab("declare");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -283,6 +303,7 @@ function main() {
     $("reply-chip").hidden = false;
     $("btn-send").textContent = "🔥 共鳴して宣言する";
     $("btn-silent").hidden = true;
+    $("silent-nudge").hidden = true;
     switchTab("declare");
     window.scrollTo({ top: 0, behavior: "smooth" });
     toast("🔗 共鳴!同じ時間で宣言しよう");
@@ -293,6 +314,7 @@ function main() {
     $("reply-chip").hidden = true;
     $("btn-send").textContent = "🔥 みんなに宣言する";
     $("btn-silent").hidden = false;
+    $("silent-nudge").hidden = false;
   }
   $("reply-chip-clear").addEventListener("click", clearReply);
 
