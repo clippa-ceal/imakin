@@ -33,6 +33,18 @@ function nowInWindow(start, end) {
 const STAMPS = ["👍", "🔥", "💪", "🤣"];
 
 exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
+  try {
+    return await handleSendWorkout(req);
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    // HttpsError以外の例外はクライアントに"internal"としか伝わらず原因が分からないため、
+    // 実際のメッセージを乗せて再送出する(ログにもスタックを残す)
+    console.error("sendWorkout failed:", e);
+    throw new HttpsError("internal", `送信処理でエラーが発生しました: ${e.message || e}`);
+  }
+});
+
+async function handleSendWorkout(req) {
   if (!req.auth) throw new HttpsError("unauthenticated", "ログインが必要です");
   const uid = req.auth.uid;
 
@@ -130,4 +142,4 @@ exports.sendWorkout = onCall({ region: "asia-northeast1" }, async (req) => {
 
   // 誰に何件届いたかは意図的に返さない
   return { ok: true };
-});
+}
