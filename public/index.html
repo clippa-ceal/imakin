@@ -346,9 +346,21 @@
       <button id="workout-exit" class="chip-x" aria-label="閉じる">×</button>
     </div>
     <div class="workout-clock">
-      <p class="workout-time"><span id="wo-hm">--:--</span><span id="wo-s" class="workout-sec">00</span></p>
-      <p id="wo-remain" class="workout-remain"></p>
+      <p class="workout-remain-label" id="wo-remain-label">のこり</p>
+      <p id="wo-remain" class="workout-remain">--:--</p>
       <div class="workout-progress"><div id="wo-bar"></div></div>
+      <!-- アナログ時計(開始〜終了の区間を文字盤に表示) -->
+      <svg id="wo-analog" class="wo-analog" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="92" class="wo-face"/>
+        <g id="wo-ticks"></g>
+        <path id="wo-arc" class="wo-arc" d=""/>
+        <g id="wo-marks"></g>
+        <line id="wo-hand-h" class="wo-hand-h" x1="100" y1="100" x2="100" y2="55"/>
+        <line id="wo-hand-m" class="wo-hand-m" x1="100" y1="100" x2="100" y2="30"/>
+        <line id="wo-hand-s" class="wo-hand-s" x1="100" y1="112" x2="100" y2="22"/>
+        <circle cx="100" cy="100" r="4" class="wo-pin"/>
+      </svg>
+      <p class="wo-span"><span>開始 <b id="wo-start">--:--</b></span><span>終了 <b id="wo-end">--:--</b></span></p>
       <p id="workout-msg" class="workout-msg"></p>
     </div>
     <div id="bubble-layer" class="bubble-layer"></div>

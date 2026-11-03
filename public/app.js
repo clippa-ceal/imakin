@@ -1209,18 +1209,75 @@ function main() {
     $("workout-screen").hidden = false;
     clearInterval(workoutTimer);
     workoutTimer = setInterval(workoutTick, 1000);
+    drawWorkoutSpan(state.startTs || (state.endTs - 3600000), state.endTs);
     workoutTick();
     acquireWakeLock();
   }
 
+  // ---------- アナログ時計 ----------
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const hm = (ts) => { const d = new Date(ts); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  // 12時方向を0として時計回りの角度(度)→ 座標
+  const polar = (deg, r) => [100 + r * Math.sin(deg * Math.PI / 180), 100 - r * Math.cos(deg * Math.PI / 180)];
+  const minuteAngle = (ts) => { const d = new Date(ts); return (d.getMinutes() + d.getSeconds() / 60) * 6; };
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  (function drawDial() {
+    const g = $("wo-ticks");
+    for (let i = 0; i < 60; i++) {
+      const major = i % 5 === 0;
+      const [x1, y1] = polar(i * 6, major ? 80 : 84);
+      const [x2, y2] = polar(i * 6, 88);
+      g.appendChild(svgEl("line", { x1, y1, x2, y2, class: "wo-tick" + (major ? " major" : "") }));
+      if (major && i % 15 === 0) {
+        const [tx, ty] = polar(i * 6, 68);
+        const t = svgEl("text", { x: tx, y: ty, class: "wo-num" });
+        t.textContent = String(i / 5 || 12);
+        g.appendChild(t);
+      }
+    }
+  })();
+  // 開始〜終了を外周の弧で表示(1時間以内なら分針基準、超える場合は時針基準)
+  function drawWorkoutSpan(startTs, endTs) {
+    const span = endTs - startTs;
+    const byHour = span > 3600000;
+    const ang = (ts) => {
+      if (!byHour) return minuteAngle(ts);
+      const d = new Date(ts);
+      return ((d.getHours() % 12) + d.getMinutes() / 60) * 30;
+    };
+    const a0 = ang(startTs);
+    let sweep = byHour ? span / 3600000 * 30 : span / 60000 * 6;
+    sweep = Math.min(sweep, 359.9);
+    const r = 92;
+    const [x0, y0] = polar(a0, r);
+    const [x1, y1] = polar(a0 + sweep, r);
+    $("wo-arc").setAttribute("d", sweep > 0
+      ? `M ${x0} ${y0} A ${r} ${r} 0 ${sweep > 180 ? 1 : 0} 1 ${x1} ${y1}` : "");
+    const marks = $("wo-marks");
+    marks.innerHTML = "";
+    marks.appendChild(svgEl("circle", { cx: x0, cy: y0, r: 6, class: "wo-mark-dot start" }));
+    marks.appendChild(svgEl("circle", { cx: x1, cy: y1, r: 6, class: "wo-mark-dot end" }));
+    $("wo-start").textContent = hm(startTs);
+    $("wo-end").textContent = hm(endTs);
+  }
+  function setHand(id, deg) { $(id).setAttribute("transform", `rotate(${deg} 100 100)`); }
+
   function workoutTick() {
     const now = new Date();
-    $("wo-hm").textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    $("wo-s").textContent = String(now.getSeconds()).padStart(2, "0");
+    const sec = now.getSeconds();
+    setHand("wo-hand-s", sec * 6);
+    setHand("wo-hand-m", (now.getMinutes() + sec / 60) * 6);
+    setHand("wo-hand-h", ((now.getHours() % 12) + now.getMinutes() / 60) * 30);
     const left = workout.endTs - now.getTime();
     const startTs = workout.startTs || (workout.endTs - 3600000);
     const prog = Math.min(1, Math.max(0, (now.getTime() - startTs) / (workout.endTs - startTs)));
     $("wo-bar").style.width = (prog * 100).toFixed(1) + "%";
+    $("wo-remain").classList.toggle("done", left <= 0);
+    $("wo-remain-label").hidden = left <= 0;
     if (left <= 0) {
       $("wo-remain").textContent = "時間だ!お疲れさま 💪";
       if (!workout.celebrated) {
@@ -1233,7 +1290,7 @@ function main() {
     const s = Math.floor(left / 1000);
     const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
     $("wo-remain").textContent =
-      "あと " + (hh > 0 ? `${hh}:${String(mm).padStart(2, "0")}` : String(mm)) + `:${String(ss).padStart(2, "0")}`;
+      (hh > 0 ? `${hh}:${String(mm).padStart(2, "0")}` : String(mm)) + `:${String(ss).padStart(2, "0")}`;
   }
 
   function exitWorkout() {
