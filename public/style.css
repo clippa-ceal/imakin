@@ -341,13 +341,31 @@ input:focus, textarea:focus { border-color: var(--accent); }
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; pointer-events: none;
 }
-.workout-time {
-  font-size: min(19vw, 88px); font-weight: 800; line-height: 1; letter-spacing: .03em;
-  font-variant-numeric: tabular-nums;
+.workout-remain-label { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .1em; }
+.workout-remain {
+  font-size: min(22vw, 104px); font-weight: 800; line-height: 1; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums; color: var(--text);
   text-shadow: 0 0 46px rgba(255, 122, 60, .35);
 }
-.workout-sec { font-size: .35em; font-weight: 700; color: var(--muted); margin-left: .2em; }
-.workout-remain { color: var(--accent2); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.workout-remain.done { font-size: min(9vw, 40px); color: var(--accent2); }
+/* アナログ時計 */
+.wo-analog { width: min(52vw, 220px); height: auto; margin-top: 14px; }
+.wo-face { fill: rgba(26, 31, 51, .7); stroke: #3a4368; stroke-width: 2; }
+.wo-tick { stroke: #4a5378; stroke-width: 1.5; stroke-linecap: round; }
+.wo-tick.major { stroke: var(--muted); stroke-width: 3; }
+.wo-num { fill: var(--muted); font-size: 13px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.wo-arc { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; opacity: .8; }
+.wo-mark-dot { stroke: var(--bg); stroke-width: 2; }
+.wo-mark-dot.start { fill: #6fd38f; }
+.wo-mark-dot.end { fill: var(--accent2); }
+.wo-hand-h { stroke: var(--text); stroke-width: 6; stroke-linecap: round; }
+.wo-hand-m { stroke: var(--text); stroke-width: 4; stroke-linecap: round; }
+.wo-hand-s { stroke: var(--accent); stroke-width: 1.5; stroke-linecap: round; }
+.wo-pin { fill: var(--accent); }
+.wo-span { display: flex; gap: 18px; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wo-span b { font-size: 18px; margin-left: 4px; }
+.wo-span span:first-child b { color: #6fd38f; }
+.wo-span span:last-child b { color: var(--accent2); }
 .workout-msg { color: var(--muted); font-size: 14px; }
 .workout-progress {
   width: min(70vw, 320px); height: 6px; margin-top: 4px;
@@ -370,6 +388,8 @@ input:focus, textarea:focus { border-color: var(--accent); }
 }
 .workout-hint { color: var(--muted); font-size: 12px; text-align: center; margin-bottom: 8px; }
 .workout-done { position: relative; z-index: 2; margin-top: 0; }
+/* 振り返りパネルを開いている間は大ボタンを隠す(押しても何も起きず「効かない」ように見えるため) */
+.finish-panel:not([hidden]) ~ .workout-done { display: none; }
 
 /* フキダシ付箋 */
 .bubble-layer { position: absolute; inset: 54px 6px 110px; z-index: 1; pointer-events: none; }
@@ -451,7 +471,8 @@ input:focus, textarea:focus { border-color: var(--accent); }
 /* 終了パネル */
 .finish-panel {
   position: absolute; left: 16px; right: 16px;
-  bottom: calc(84px + env(safe-area-inset-bottom));
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  max-height: calc(100% - 70px); overflow-y: auto;
   background: var(--card); border: 1px solid #3a4368; border-radius: var(--radius);
   padding: 14px; display: flex; flex-direction: column; gap: 10px; z-index: 3;
   box-shadow: 0 12px 34px rgba(0, 0, 0, .55);
